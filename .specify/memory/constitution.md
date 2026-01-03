@@ -1,50 +1,178 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+同步影響報告 - 憲章更新
+========================================
+版本變更：0.0.0 → 1.0.0
+理由：初始憲章建立，包含完整的治理框架
 
-## Core Principles
+修改的原則：
+- 新增：I. 程式碼品質標準 - 建立可維護性要求
+- 新增：II. 測試標準（不可妥協）- 強制 TDD 和全面測試
+- 新增：III. 使用者體驗一致性 - 確保一致的使用者互動
+- 新增：IV. 效能要求 - 定義可衡量的效能標準
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+新增的章節：
+- 核心原則（4 項聚焦於品質、測試、UX 和效能的原則）
+- 品質關卡 - 部署前驗證要求
+- 開發工作流程 - 標準開發流程
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+範本一致性：
+✅ plan-template.md - Constitution Check 段落已與所有 4 項原則對齊
+✅ spec-template.md - 使用者情境和驗收標準支援 UX/測試原則
+✅ tasks-template.md - 任務組織支援 TDD 工作流程和品質標準
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+後續事項：
+- 無 - 所有佔位符已解決
+-->
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+# Worklog 專案憲章
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+## 核心原則
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### I. 程式碼品質標準
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+所有程式碼必須符合以下品質要求：
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- **可讀性優先**：程式碼必須自我說明，變數和函式名稱須清晰表達意圖
+- **模組化設計**：每個函式/方法僅負責單一職責（Single Responsibility Principle）
+- **程式碼審查必要性**：所有變更必須經過程式碼審查才能合併至主分支
+- **文件化要求**：公開 API 必須包含清晰的文件說明，包括參數、回傳值和使用範例
+- **無警告政策**：所有 linter 警告必須解決，不得忽略或停用檢查規則
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**理由**：程式碼品質直接影響長期維護成本、團隊協作效率和系統穩定性。高品質的程式碼能減少錯誤、加速新功能開發，並降低技術債務累積。
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+### II. 測試標準（不可妥協）
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+測試驅動開發（TDD）為強制要求：
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+- **測試先行流程**：必須先撰寫測試 → 獲得使用者批准 → 驗證測試失敗 → 才能開始實作
+- **Red-Green-Refactor 循環**：嚴格遵守 TDD 紅燈（測試失敗）→ 綠燈（測試通過）→ 重構的開發循環
+- **測試覆蓋率要求**：
+  - 單元測試：核心業務邏輯覆蓋率須達 80% 以上
+  - 整合測試：所有 API 端點和服務互動必須有整合測試
+  - 契約測試：跨服務溝通和共享結構必須有契約測試
+- **獨立可測試性**：每個使用者故事必須能獨立測試，不依賴其他故事的實作
+- **測試即文件**：測試案例必須清楚展示功能預期行為，作為活文件使用
+
+**理由**：TDD 確保程式碼正確性、促進良好設計、提供回歸測試保護，並作為程式碼行為的權威文件。測試先行能迫使開發者思考介面設計和邊界條件。
+
+### III. 使用者體驗一致性
+
+確保跨功能的一致使用者體驗：
+
+- **優先級導向開發**：使用者故事必須按優先級（P1、P2、P3）排序，P1 代表最關鍵功能
+- **獨立價值交付**：每個使用者故事必須能獨立交付價值，形成可用的 MVP（最小可行產品）
+- **驗收標準明確性**：所有使用者故事必須包含明確的 Given-When-Then 格式驗收情境
+- **邊界情況處理**：必須明確定義錯誤處理、邊界條件和異常情況的使用者體驗
+- **回饋機制**：系統操作必須提供即時、清晰的回饋給使用者
+
+**理由**：一致的使用者體驗能降低學習曲線、減少使用者錯誤、提升使用者滿意度。優先級導向開發確保團隊專注於最有價值的功能。
+
+### IV. 效能要求
+
+所有功能必須符合明確的效能標準：
+
+- **回應時間限制**：
+  - API 端點：P95 延遲 < 200ms
+  - 資料庫查詢：複雜查詢 < 100ms
+  - 頁面載入：首次內容繪製（FCP）< 1.5s
+- **資源使用限制**：
+  - 記憶體使用：單一程序 < 100MB（一般情況）
+  - CPU 使用：平穩負載下 < 50% 單核心
+- **可延展性要求**：系統必須能處理至少 1000 並行使用者而不降級
+- **效能測試強制性**：所有新功能必須包含效能基準測試
+- **監控與警示**：必須設定效能監控和異常警示機制
+
+**理由**：效能直接影響使用者滿意度和系統可用性。明確的效能指標能在開發早期發現問題，避免昂貴的後期優化。
+
+## 品質關卡
+
+所有功能在部署前必須通過以下檢查：
+
+### 程式碼品質關卡
+
+- [ ] 所有程式碼審查意見已解決
+- [ ] Linter 檢查無警告或錯誤
+- [ ] 程式碼覆蓋率符合標準（單元測試 ≥ 80%）
+- [ ] 公開 API 包含完整文件說明
+
+### 測試關卡
+
+- [ ] 所有測試通過（單元、整合、契約測試）
+- [ ] 測試在 CI/CD 管道中執行成功
+- [ ] 邊界情況和錯誤情境有對應測試
+- [ ] 獨立使用者故事測試驗證通過
+
+### 使用者體驗關卡
+
+- [ ] 所有驗收情境通過測試
+- [ ] 錯誤訊息清晰且可操作
+- [ ] 回饋機制正常運作
+- [ ] 無障礙性要求符合（如適用）
+
+### 效能關卡
+
+- [ ] 效能基準測試通過定義的限制
+- [ ] 負載測試結果符合可延展性要求
+- [ ] 記憶體洩漏檢查通過
+- [ ] 監控儀表板設定完成
+
+## 開發工作流程
+
+標準開發流程必須遵循以下步驟：
+
+1. **規格制定**（/speckit.specify）：定義使用者故事、驗收標準和成功指標
+2. **計劃制定**（/speckit.plan）：建立技術方案、架構決策和憲章檢查
+3. **任務分解**（/speckit.tasks）：將功能分解為可追蹤、獨立的任務
+4. **實作執行**（/speckit.implement）：遵循 TDD 循環實作功能
+5. **持續驗證**：在每個檢查點驗證品質、測試、UX 和效能標準
+
+### 分支策略
+
+- 功能分支命名：`[###-feature-name]`（例如：`001-user-auth`）
+- 所有變更通過 Pull Request 合併
+- 主分支必須始終保持可部署狀態
+
+### 提交規範
+
+使用語意化提交訊息（Conventional Commits）：
+- `feat:` 新功能
+- `fix:` 錯誤修復
+- `docs:` 文件變更
+- `test:` 測試相關變更
+- `refactor:` 程式碼重構
+- `perf:` 效能優化
+
+## 治理規則
+
+### 憲章地位
+
+本憲章優先於所有其他開發實踐和慣例。任何與憲章衝突的實踐必須修正或正式提出修訂申請。
+
+### 修訂程序
+
+1. **提議**：任何團隊成員可提出修訂提案，須包含理由和影響分析
+2. **審查**：修訂提案須經團隊審查和討論
+3. **批准**：修訂須獲得團隊共識（或專案負責人批准）
+4. **遷移計劃**：重大變更須包含現有程式碼的遷移計劃
+5. **版本更新**：修訂後更新憲章版本號和修訂日期
+
+### 版本控制政策
+
+憲章遵循語意化版本控制（Semantic Versioning）：
+- **MAJOR**（主版本）：移除或重新定義核心原則，造成向後不相容
+- **MINOR**（次版本）：新增原則或大幅擴充指導方針
+- **PATCH**（修訂版本）：釐清說明、措辭修正、非語意性改進
+
+### 合規性審查
+
+- 所有 Pull Request 必須驗證是否符合憲章要求
+- 任何複雜性例外必須在實作計劃中明確說明並提供理由
+- 定期進行憲章合規性審查（建議每季度一次）
+
+### 執行指引
+
+日常開發指引請參考 `.specify/templates/` 下的範本檔案和 `.github/prompts/` 下的命令指引。
+
+---
+
+**版本**：1.0.0 | **批准日期**：2026-01-03 | **最後修訂日期**：2026-01-03
