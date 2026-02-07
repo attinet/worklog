@@ -1,0 +1,56 @@
+{
+  "info": {
+    "name": "WorkLog API - Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "基本 Postman collection 由專案掃描自動產生（摘要）。"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"Admin@123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": [ "{{baseUrl}}" ], "path": [ "api","auth","login" ] }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": [ "{{baseUrl}}" ], "path": [ "api","auth","me" ] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "WorkLogs",
+      "item": [
+        {
+          "name": "Get WorkLogs",
+          "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ], "url": { "raw": "{{baseUrl}}/api/worklogs", "host": [ "{{baseUrl}}" ], "path": [ "api","worklogs" ] } }
+        },
+        {
+          "name": "Create WorkLog",
+          "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\n  \"title\": \"範例工作\",\n  \"content\": \"內容...\",\n  \"recordDate\": \"2026-02-01\",\n  \"workHours\": 2.5,\n  \"departmentIds\": [],\n  \"workTypeIds\": []\n}" }, "url": { "raw": "{{baseUrl}}/api/worklogs", "host": [ "{{baseUrl}}" ], "path": [ "api","worklogs" ] } }
+        }
+      ]
+    },
+    {
+      "name": "Todos",
+      "item": [
+        { "name": "Get Todos", "request": { "method": "GET", "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" } ], "url": { "raw": "{{baseUrl}}/api/todos", "host": [ "{{baseUrl}}" ], "path": [ "api","todos" ] } } },
+        { "name": "Create Todo", "request": { "method": "POST", "header": [ { "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\n  \"title\": \"範例待辦\",\n  \"description\": \"描述...\",\n  \"dueDate\": \"2026-02-10\",\n  \"priority\": \"Normal\",\n  \"categoryId\": null\n}" }, "url": { "raw": "{{baseUrl}}/api/todos", "host": [ "{{baseUrl}}" ], "path": [ "api","todos" ] } } }
+      ]
+    }
+  ]
+}
