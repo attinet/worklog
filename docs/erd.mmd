@@ -1,0 +1,92 @@
+erDiagram
+    USER ||--o{ WORKLOG_ENTRY : has
+    USER ||--o{ REFRESH_TOKEN : issues
+
+    WORKLOG_ENTRY }o--|| PROJECT : belongs_to
+    WORKLOG_ENTRY }o--|| PROCESS_STATUS : has_status
+
+    WORKLOG_ENTRY ||--o{ WORKLOG_DEPARTMENT : uses
+    DEPARTMENT ||--o{ WORKLOG_DEPARTMENT : contains
+
+    WORKLOG_ENTRY ||--o{ WORKLOG_WORKTYPE : uses
+    WORKTYPE ||--o{ WORKLOG_WORKTYPE : contains
+
+    TODO_CATEGORY ||--o{ TODO_ITEM : contains
+    TODO_ITEM ||--o{ TODO_SUBTASK : has
+    TODO_ITEM ||--o{ TODO_ATTACHMENT : has
+    TODO_ITEM ||--o{ TODO_COMMENT : has
+
+    USER ||--o{ TODO_COMMENT : writes
+
+    %% 欄位範例（重要欄位）
+    USER {
+      int Id
+      string Username
+      string Email
+      string PasswordHash
+      string Role
+    }
+
+    WORKLOG_ENTRY {
+      int Id
+      string Title
+      string Content
+      date RecordDate
+      decimal WorkHours
+      int UserId
+      int ProjectId
+      int ProcessStatusId
+    }
+
+    PROJECT {
+      int Id
+      string Name
+    }
+
+    DEPARTMENT {
+      int Id
+      string Name
+    }
+
+    WORKTYPE {
+      int Id
+      string Name
+    }
+
+    TODO_ITEM {
+      int Id
+      string Title
+      string Description
+      date DueDate
+      string Status
+      string Priority
+      int CategoryId
+      int UserId
+    }
+
+    TODO_SUBTASK {
+      int Id
+      int TodoItemId
+      string Title
+      bool IsCompleted
+    }
+
+    TODO_ATTACHMENT {
+      int Id
+      int TodoItemId
+      string FileName
+    }
+
+    TODO_COMMENT {
+      int Id
+      int TodoItemId
+      int UserId
+      string Content
+    }
+
+    REFRESH_TOKEN {
+      int Id
+      int UserId
+      string Token
+      datetime ExpiresAt
+    }
