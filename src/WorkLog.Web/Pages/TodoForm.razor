@@ -1,0 +1,306 @@
+@page "/todos/create"
+@page "/todos/edit/{Id:int}"
+@using Microsoft.AspNetCore.Authorization
+@using WorkLog.Shared.DTOs.Todos
+@using WorkLog.Web.Services
+@inject TodoService TodoService
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">@(IsEditMode ? "編輯待辦事項" : "新增待辦事項")</h1>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p class="mt-4 text-gray-600">載入中...</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@model" OnValidSubmit="HandleSubmit" class="bg-white rounded-lg shadow-sm p-6">
+            <DataAnnotationsValidator />
+
+            <!-- 標題 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">標題 *</label>
+                <InputText @bind-Value="model.Title" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="輸入待辦事項標題" />
+                <ValidationMessage For="@(() => model.Title)" class="text-red-600 text-sm mt-1" />
+            </div>
+
+            <!-- 描述 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                <InputTextArea @bind-Value="model.Description" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="4" placeholder="詳細描述..." />
+                <ValidationMessage For="@(() => model.Description)" class="text-red-600 text-sm mt-1" />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <!-- 截止日期 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">截止日期</label>
+                    <input type="datetime-local" @bind="model.DueDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+
+                <!-- 優先順序 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">優先順序 *</label>
+                    <select @bind="model.Priority" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="Low">低</option>
+                        <option value="Medium">中</option>
+                        <option value="High">高</option>
+                    </select>
+                </div>
+
+                <!-- 狀態 (僅編輯模式) -->
+                @if (IsEditMode)
+                {
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">狀態 *</label>
+                        <select @bind="editModel.Status" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="Pending">待處理</option>
+                            <option value="InProgress">進行中</option>
+                            <option value="Completed">已完成</option>
+                        </select>
+                    </div>
+                }
+
+                <!-- 分類 -->
+                <div class="@(IsEditMode ? "col-span-1" : "col-span-1")">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">分類</label>
+                    <select @bind="model.CategoryId" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">無分類</option>
+                        @foreach (var category in categories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <!-- 子任務 -->
+            @if (!IsEditMode)
+            {
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">子任務</label>
+                    @foreach (var (subTask, index) in model.SubTasks.Select((st, i) => (st, i)))
+                    {
+                        <div class="flex gap-2 mb-2">
+                            <InputText @bind-Value="subTask.Title" class="flex-1 px-3 py-2 border border-gray-300 rounded-md" placeholder="子任務標題" />
+                            <button type="button" @onclick="() => RemoveSubTask(index)" class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-md">
+                                刪除
+                            </button>
+                        </div>
+                    }
+                    <button type="button" @onclick="AddSubTask" class="text-blue-600 hover:underline text-sm">
+                        ＋ 新增子任務
+                    </button>
+                </div>
+            }
+
+            @if (errorMessage != null)
+            {
+                <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+                    @errorMessage
+                </div>
+            }
+
+            <!-- 按鈕 -->
+            <div class="flex justify-end gap-3">
+                <button type="button" @onclick="Cancel" class="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                    取消
+                </button>
+                <button type="submit" disabled="@submitting" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                    @(submitting ? "儲存中..." : "儲存")
+                </button>
+            </div>
+        </EditForm>
+
+        <!-- 編輯模式下的子任務管理 -->
+        @if (IsEditMode && existingTodo != null)
+        {
+            <div class="bg-white rounded-lg shadow-sm p-6 mt-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">子任務管理</h3>
+                
+                @foreach (var subTask in existingTodo.SubTasks.OrderBy(st => st.SortOrder))
+                {
+                    <div class="flex items-center gap-2 mb-2 p-2 border border-gray-200 rounded">
+                        <input type="checkbox" checked="@subTask.IsCompleted" @onchange="e => ToggleSubTask(subTask.Id, (bool)e.Value!)" class="h-5 w-5" />
+                        <span class="flex-1 @(subTask.IsCompleted ? "line-through text-gray-500" : "")">@subTask.Title</span>
+                        <button type="button" @onclick="() => DeleteSubTask(subTask.Id)" class="text-red-600 hover:text-red-800 text-sm">
+                            刪除
+                        </button>
+                    </div>
+                }
+
+                <div class="flex gap-2 mt-4">
+                    <input type="text" @bind="newSubTaskTitle" @bind:after="@(() => newSubTaskTitle = newSubTaskTitle?.Trim())" class="flex-1 px-3 py-2 border border-gray-300 rounded-md" placeholder="新子任務標題" />
+                    <button type="button" @onclick="AddSubTaskToExisting" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        新增
+                    </button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private bool IsEditMode => Id.HasValue;
+    private CreateTodoItemRequest model = new() { Priority = "Medium" };
+    private UpdateTodoItemRequest editModel = new() { Priority = "Medium", Status = "Pending" };
+    private TodoItemResponse? existingTodo;
+    private List<TodoCategoryResponse> categories = new();
+    private bool loading = true;
+    private bool submitting = false;
+    private string? errorMessage;
+    private string? newSubTaskTitle;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+        
+        if (IsEditMode && Id.HasValue)
+        {
+            await LoadTodo(Id.Value);
+        }
+        
+        loading = false;
+    }
+
+    private async Task LoadCategories()
+    {
+        var result = await TodoService.GetCategoriesAsync();
+        if (result != null)
+        {
+            categories = result;
+        }
+    }
+
+    private async Task LoadTodo(int id)
+    {
+        existingTodo = await TodoService.GetTodoByIdAsync(id);
+        if (existingTodo != null)
+        {
+            editModel.Title = existingTodo.Title;
+            editModel.Description = existingTodo.Description;
+            editModel.DueDate = existingTodo.DueDate;
+            editModel.Priority = existingTodo.Priority;
+            editModel.Status = existingTodo.Status;
+            editModel.CategoryId = existingTodo.Category?.Id;
+            
+            model.Title = existingTodo.Title;
+            model.DueDate = existingTodo.DueDate;
+            model.Priority = existingTodo.Priority;
+            model.CategoryId = existingTodo.Category?.Id;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        submitting = true;
+        errorMessage = null;
+
+        try
+        {
+            if (IsEditMode && Id.HasValue)
+            {
+                var success = await TodoService.UpdateTodoAsync(Id.Value, editModel);
+                if (success)
+                {
+                    Navigation.NavigateTo("/todos");
+                }
+                else
+                {
+                    errorMessage = "更新失敗，請稍後再試";
+                }
+            }
+            else
+            {
+                // 清理子任務的序號
+                for (int i = 0; i < model.SubTasks.Count; i++)
+                {
+                    model.SubTasks[i].SortOrder = i + 1;
+                }
+
+                var result = await TodoService.CreateTodoAsync(model);
+                if (result != null)
+                {
+                    Navigation.NavigateTo("/todos");
+                }
+                else
+                {
+                    errorMessage = "建立失敗，請稍後再試";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"發生錯誤: {ex.Message}";
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private void AddSubTask()
+    {
+        model.SubTasks.Add(new CreateTodoSubTaskRequest { SortOrder = model.SubTasks.Count + 1 });
+    }
+
+    private void RemoveSubTask(int index)
+    {
+        model.SubTasks.RemoveAt(index);
+    }
+
+    private async Task AddSubTaskToExisting()
+    {
+        if (string.IsNullOrWhiteSpace(newSubTaskTitle) || !Id.HasValue) return;
+
+        var request = new CreateTodoSubTaskRequest
+        {
+            Title = newSubTaskTitle,
+            SortOrder = existingTodo?.SubTasks.Count + 1 ?? 1
+        };
+
+        var result = await TodoService.AddSubTaskAsync(Id.Value, request);
+        if (result != null)
+        {
+            await LoadTodo(Id.Value);
+            newSubTaskTitle = null;
+        }
+    }
+
+    private async Task ToggleSubTask(int subTaskId, bool isCompleted)
+    {
+        if (!Id.HasValue || existingTodo == null) return;
+
+        var subTask = existingTodo.SubTasks.FirstOrDefault(st => st.Id == subTaskId);
+        if (subTask == null) return;
+
+        var request = new UpdateTodoSubTaskRequest
+        {
+            Title = subTask.Title,
+            IsCompleted = isCompleted,
+            SortOrder = subTask.SortOrder
+        };
+
+        await TodoService.UpdateSubTaskAsync(Id.Value, subTaskId, request);
+        await LoadTodo(Id.Value);
+    }
+
+    private async Task DeleteSubTask(int subTaskId)
+    {
+        if (!Id.HasValue) return;
+
+        await TodoService.DeleteSubTaskAsync(Id.Value, subTaskId);
+        await LoadTodo(Id.Value);
+    }
+
+    private void Cancel() => Navigation.NavigateTo("/todos");
+}

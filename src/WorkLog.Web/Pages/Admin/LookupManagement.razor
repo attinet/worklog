@@ -1,0 +1,181 @@
+@page "/admin/projects"
+@page "/admin/departments"
+@page "/admin/work-types"
+@page "/admin/statuses"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>@PageTitle</PageTitle>
+
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">@PageTitle</h1>
+    <a href="/admin" class="btn-secondary text-sm">← 返回管理</a>
+</div>
+
+@* 新增/編輯表單 *@
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+    <h3 class="font-semibold text-gray-700 mb-3">@(editId.HasValue ? "編輯項目" : "新增項目")</h3>
+    <div class="flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[200px]">
+            <label class="block text-sm font-medium text-gray-700 mb-1">名稱</label>
+            <input @bind="editName" class="input-field" placeholder="輸入名稱" />
+        </div>
+        <div class="w-24">
+            <label class="block text-sm font-medium text-gray-700 mb-1">排序</label>
+            <input type="number" @bind="editSortOrder" class="input-field" />
+        </div>
+        <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1 text-sm">
+                <input type="checkbox" @bind="editIsActive" class="rounded" />
+                啟用
+            </label>
+        </div>
+        <div class="flex gap-2">
+            <button @onclick="SaveItem" class="btn-primary text-sm">
+                @(editId.HasValue ? "更新" : "新增")
+            </button>
+            @if (editId.HasValue)
+            {
+                <button @onclick="CancelEdit" class="btn-secondary text-sm">取消</button>
+            }
+        </div>
+    </div>
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <p class="text-sm mt-2 @(isError ? "text-red-600" : "text-green-600")">@message</p>
+    }
+</div>
+
+@* 列表 *@
+@if (items == null)
+{
+    <p class="text-gray-500">載入中...</p>
+}
+else
+{
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="th-cell">ID</th>
+                    <th class="th-cell">名稱</th>
+                    <th class="th-cell">排序</th>
+                    <th class="th-cell">狀態</th>
+                    <th class="th-cell">操作</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                @foreach (var item in items.OrderBy(i => i.SortOrder))
+                {
+                    <tr class="hover:bg-gray-50">
+                        <td class="td-cell">@item.Id</td>
+                        <td class="td-cell font-medium">@item.Name</td>
+                        <td class="td-cell">@item.SortOrder</td>
+                        <td class="td-cell">
+                            <span class="@(item.IsActive ? "badge-green" : "badge-gray")">
+                                @(item.IsActive ? "啟用" : "停用")
+                            </span>
+                        </td>
+                        <td class="td-cell">
+                            <button @onclick="() => StartEdit(item)" class="text-blue-600 hover:text-blue-800 text-sm mr-2">編輯</button>
+                            <button @onclick="() => DeleteItem(item.Id)" class="text-red-500 hover:text-red-700 text-sm">刪除</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<LookupItemDto>? items;
+    private string editName = "";
+    private int editSortOrder = 0;
+    private bool editIsActive = true;
+    private int? editId;
+    private string? message;
+    private bool isError;
+
+    private string ApiPath => Navigation.Uri.Contains("/projects") ? "projects"
+        : Navigation.Uri.Contains("/departments") ? "departments"
+        : Navigation.Uri.Contains("/work-types") ? "work-types"
+        : "statuses";
+
+    private string PageTitle => ApiPath switch
+    {
+        "projects" => "專案名稱維護",
+        "departments" => "業管單位維護",
+        "work-types" => "工作類型維護",
+        "statuses" => "處理狀態維護",
+        _ => "維護"
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadItems();
+    }
+
+    private async Task LoadItems()
+    {
+        items = await Http.GetFromJsonAsync<List<LookupItemDto>>($"api/admin/{ApiPath}");
+    }
+
+    private async Task SaveItem()
+    {
+        message = null;
+        if (string.IsNullOrWhiteSpace(editName))
+        {
+            message = "名稱不可為空"; isError = true; return;
+        }
+
+        var request = new LookupItemRequest
+        {
+            Name = editName.Trim(),
+            IsActive = editIsActive,
+            SortOrder = editSortOrder
+        };
+
+        HttpResponseMessage response;
+        if (editId.HasValue)
+            response = await Http.PutAsJsonAsync($"api/admin/{ApiPath}/{editId.Value}", request);
+        else
+            response = await Http.PostAsJsonAsync($"api/admin/{ApiPath}", request);
+
+        if (response.IsSuccessStatusCode)
+        {
+            message = editId.HasValue ? "更新成功" : "新增成功";
+            isError = false;
+            CancelEdit();
+            await LoadItems();
+        }
+        else
+        {
+            message = "操作失敗"; isError = true;
+        }
+    }
+
+    private void StartEdit(LookupItemDto item)
+    {
+        editId = item.Id;
+        editName = item.Name;
+        editSortOrder = item.SortOrder;
+        editIsActive = item.IsActive;
+        message = null;
+    }
+
+    private void CancelEdit()
+    {
+        editId = null;
+        editName = "";
+        editSortOrder = 0;
+        editIsActive = true;
+    }
+
+    private async Task DeleteItem(int id)
+    {
+        var response = await Http.DeleteAsync($"api/admin/{ApiPath}/{id}");
+        if (response.IsSuccessStatusCode)
+            await LoadItems();
+    }
+}

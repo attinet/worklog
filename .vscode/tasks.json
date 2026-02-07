@@ -1,0 +1,128 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build WorkLog.Web",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\src\\WorkLog.Web\\WorkLog.Web.csproj\" --nologo"
+		},
+		{
+			"label": "Build WorkLog.Web 2",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\src\\WorkLog.Web\\WorkLog.Web.csproj\" --nologo"
+		},
+		{
+			"label": "Build WorkLog.Web 3",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\src\\WorkLog.Web\\WorkLog.Web.csproj\" --nologo"
+		},
+		{
+			"label": "Build WorkLog.Web 4",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\src\\WorkLog.Web\\WorkLog.Web.csproj\" --nologo"
+		},
+		{
+			"label": "Build WorkLog.Web 5",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\src\\WorkLog.Web\\WorkLog.Web.csproj\" --nologo"
+		},
+		{
+			"label": "Build WorkLog.Web 6",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\src\\WorkLog.Web\\WorkLog.Web.csproj\" --nologo"
+		},
+		{
+			"label": "EF Core Migration",
+			"type": "shell",
+			"command": "dotnet ef migrations add InitialCreate -p \"D:\\開發中\\worklog\\src\\WorkLog.Infrastructure\\WorkLog.Infrastructure.csproj\" -s \"D:\\開發中\\worklog\\src\\WorkLog.Api\\WorkLog.Api.csproj\" -o Data/Migrations"
+		},
+		{
+			"label": "Build Full Solution",
+			"type": "shell",
+			"command": "dotnet build \"D:\\開發中\\worklog\\WorkLog.slnx\" --nologo"
+		},
+		{
+			"label": "Recreate Migration",
+			"type": "shell",
+			"command": "Remove-Item -Recurse -Force \"D:\\開發中\\worklog\\src\\WorkLog.Infrastructure\\Data\\Migrations\" -ErrorAction SilentlyContinue; dotnet ef migrations add InitialCreate -p \"D:\\開發中\\worklog\\src\\WorkLog.Infrastructure\\WorkLog.Infrastructure.csproj\" -s \"D:\\開發中\\worklog\\src\\WorkLog.Api\\WorkLog.Api.csproj\" -o Data/Migrations"
+		},
+		{
+			"label": "Build Blazor",
+			"type": "shell",
+			"command": "dotnet build src\\WorkLog.Web\\WorkLog.Web.csproj --nologo"
+		},
+		{
+			"label": "Create Todo Migration",
+			"type": "shell",
+			"command": "Remove-Item -Recurse -Force \"D:\\開發中\\worklog\\src\\WorkLog.Infrastructure\\Data\\Migrations\" -ErrorAction SilentlyContinue; dotnet ef migrations add AddTodoFeature -p \"D:\\開發中\\worklog\\src\\WorkLog.Infrastructure\\WorkLog.Infrastructure.csproj\" -s \"D:\\開發中\\worklog\\src\\WorkLog.Api\\WorkLog.Api.csproj\" -o Data/Migrations"
+		},
+		{
+			"label": "Reset Database",
+			"type": "shell",
+			"command": "sqllocaldb stop MSSQLLocalDB; sqllocaldb delete MSSQLLocalDB; sqllocaldb create MSSQLLocalDB; sqllocaldb start MSSQLLocalDB; Write-Host '資料庫已重置' -ForegroundColor Green"
+		},
+		{
+			"label": "Start API",
+			"type": "shell",
+			"command": "cd src\\WorkLog.Api; dotnet run",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Frontend",
+			"type": "shell",
+			"command": "cd src\\WorkLog.Web; dotnet run",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Solution Now",
+			"type": "shell",
+			"command": "dotnet build WorkLog.slnx",
+			"problemMatcher": [
+				"$msCompile"
+			]
+		},
+		{
+			"label": "Build Solution Final",
+			"type": "shell",
+			"command": "dotnet build WorkLog.slnx"
+        },
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/WorkLog.Api/WorkLog.Api.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "publish",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/src/WorkLog.Api/WorkLog.Api.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/src/WorkLog.Api/WorkLog.Api.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+	]
+}

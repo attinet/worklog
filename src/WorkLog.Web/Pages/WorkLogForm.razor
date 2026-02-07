@@ -1,0 +1,214 @@
+@page "/worklogs/create"
+@page "/worklogs/{Id:int}/edit"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</PageTitle>
+
+<div class="max-w-3xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</h1>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+            @errorMessage
+        </div>
+    }
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <EditForm Model="formModel" OnValidSubmit="HandleSubmit" FormName="worklogForm">
+            <DataAnnotationsValidator />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @* 標題 *@
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">標題 *</label>
+                    <InputText @bind-Value="formModel.Title" class="input-field" placeholder="工作紀錄標題" />
+                    <ValidationMessage For="() => formModel.Title" class="text-red-500 text-xs mt-1" />
+                </div>
+
+                @* 紀錄日期 *@
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">紀錄日期 *</label>
+                    <InputDate @bind-Value="formModel.RecordDate" class="input-field" />
+                    <ValidationMessage For="() => formModel.RecordDate" class="text-red-500 text-xs mt-1" />
+                </div>
+
+                @* 專案名稱 *@
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">專案名稱 *</label>
+                    <InputSelect @bind-Value="formModel.ProjectId" class="input-field">
+                        <option value="0">-- 請選擇 --</option>
+                        @foreach (var p in projects)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => formModel.ProjectId" class="text-red-500 text-xs mt-1" />
+                </div>
+
+                @* 工時 *@
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">工時（小時） *</label>
+                    <InputNumber @bind-Value="formModel.WorkHours" class="input-field" step="0.5" />
+                    <ValidationMessage For="() => formModel.WorkHours" class="text-red-500 text-xs mt-1" />
+                </div>
+
+                @* 處理狀態 *@
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">處理狀態 *</label>
+                    <InputSelect @bind-Value="formModel.ProcessStatusId" class="input-field">
+                        <option value="0">-- 請選擇 --</option>
+                        @foreach (var s in processStatuses)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => formModel.ProcessStatusId" class="text-red-500 text-xs mt-1" />
+                </div>
+            </div>
+
+            @* 業管單位（複選） *@
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">業管單位 *（可複選）</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    @foreach (var dept in departments)
+                    {
+                        <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
+                            <input type="checkbox" checked="@formModel.DepartmentIds.Contains(dept.Id)"
+                                   @onchange="(e) => ToggleSelection(formModel.DepartmentIds, dept.Id, (bool)e.Value!)"
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                            <span>@dept.Name</span>
+                        </label>
+                    }
+                </div>
+                @if (departments.Count == 0)
+                {
+                    <p class="text-gray-400 text-sm">尚未建立業管單位，請聯繫管理員</p>
+                }
+            </div>
+
+            @* 工作類型（複選） *@
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">工作類型 *（可複選）</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    @foreach (var wt in workTypes)
+                    {
+                        <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
+                            <input type="checkbox" checked="@formModel.WorkTypeIds.Contains(wt.Id)"
+                                   @onchange="(e) => ToggleSelection(formModel.WorkTypeIds, wt.Id, (bool)e.Value!)"
+                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                            <span>@wt.Name</span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            @* 內文 *@
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">內文 *</label>
+                <InputTextArea @bind-Value="formModel.Content" class="input-field" rows="5" placeholder="工作內容描述..." />
+                <ValidationMessage For="() => formModel.Content" class="text-red-500 text-xs mt-1" />
+            </div>
+
+            @* 按鈕 *@
+            <div class="mt-6 flex gap-3">
+                <button type="submit" class="btn-primary" disabled="@isSubmitting">
+                    @(isSubmitting ? "儲存中..." : (IsEdit ? "更新" : "新增"))
+                </button>
+                <a href="/" class="btn-secondary">取消</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private bool IsEdit => Id > 0;
+
+    private WorkLogRequest formModel = new() { RecordDate = DateOnly.FromDateTime(DateTime.Today) };
+    private List<LookupItemDto> projects = new();
+    private List<LookupItemDto> departments = new();
+    private List<LookupItemDto> workTypes = new();
+    private List<LookupItemDto> processStatuses = new();
+    private string? errorMessage;
+    private bool isSubmitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookups();
+
+        if (IsEdit)
+        {
+            try
+            {
+                var log = await Http.GetFromJsonAsync<WorkLogResponse>($"api/worklogs/{Id}");
+                if (log != null)
+                {
+                    formModel = new WorkLogRequest
+                    {
+                        Title = log.Title,
+                        Content = log.Content,
+                        RecordDate = log.RecordDate,
+                        WorkHours = log.WorkHours,
+                        ProjectId = log.Project.Id,
+                        ProcessStatusId = log.ProcessStatus.Id,
+                        DepartmentIds = log.Departments.Select(d => d.Id).ToList(),
+                        WorkTypeIds = log.WorkTypes.Select(w => w.Id).ToList()
+                    };
+                }
+            }
+            catch
+            {
+                errorMessage = "載入紀錄失敗";
+            }
+        }
+    }
+
+    private async Task LoadLookups()
+    {
+        try
+        {
+            projects = await Http.GetFromJsonAsync<List<LookupItemDto>>("api/lookup/projects") ?? new();
+            departments = await Http.GetFromJsonAsync<List<LookupItemDto>>("api/lookup/departments") ?? new();
+            workTypes = await Http.GetFromJsonAsync<List<LookupItemDto>>("api/lookup/work-types") ?? new();
+            processStatuses = await Http.GetFromJsonAsync<List<LookupItemDto>>("api/lookup/statuses") ?? new();
+        }
+        catch { }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        try
+        {
+            HttpResponseMessage response;
+            if (IsEdit)
+                response = await Http.PutAsJsonAsync($"api/worklogs/{Id}", formModel);
+            else
+                response = await Http.PostAsJsonAsync("api/worklogs", formModel);
+
+            if (response.IsSuccessStatusCode)
+                Navigation.NavigateTo("/");
+            else
+                errorMessage = "儲存失敗，請檢查欄位是否填寫完整";
+        }
+        catch
+        {
+            errorMessage = "發生錯誤，請稍後再試";
+        }
+
+        isSubmitting = false;
+    }
+
+    private static void ToggleSelection(List<int> list, int id, bool isChecked)
+    {
+        if (isChecked && !list.Contains(id))
+            list.Add(id);
+        else if (!isChecked)
+            list.Remove(id);
+    }
+}

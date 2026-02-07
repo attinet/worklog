@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WorkLog.Api/WorkLog.Api.csproj" />
+    <Project Path="src/WorkLog.Domain/WorkLog.Domain.csproj" />
+    <Project Path="src/WorkLog.Infrastructure/WorkLog.Infrastructure.csproj" />
+    <Project Path="src/WorkLog.Shared/WorkLog.Shared.csproj" />
+    <Project Path="src/WorkLog.Web/WorkLog.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WorkLog.Api.Tests/WorkLog.Api.Tests.csproj" />
+    <Project Path="tests/WorkLog.Domain.Tests/WorkLog.Domain.Tests.csproj" />
+    <Project Path="tests/WorkLog.Infrastructure.Tests/WorkLog.Infrastructure.Tests.csproj" />
+    <Project Path="tests/WorkLog.Web.Tests/WorkLog.Web.Tests.csproj" />
+  </Folder>
+</Solution>

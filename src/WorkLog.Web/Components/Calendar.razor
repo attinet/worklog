@@ -1,0 +1,144 @@
+@* 月份標題與切換按鈕 *@
+<div class="flex justify-between items-center mb-4">
+    <button @onclick="PreviousMonth" class="btn-secondary">◀ 上個月</button>
+    <h2 class="text-xl font-bold text-gray-800">@currentMonth.ToString("yyyy年 M月")</h2>
+    <button @onclick="NextMonth" class="btn-secondary">下個月 ▶</button>
+</div>
+
+@* 星期標題 *@
+<div class="grid grid-cols-7 gap-1 mb-2">
+    @foreach (var day in new[] { "日", "一", "二", "三", "四", "五", "六" })
+    {
+        <div class="text-center font-semibold text-gray-600 py-2">@day</div>
+    }
+</div>
+
+@* 日期網格 *@
+<div class="grid grid-cols-7 gap-1">
+    @foreach (var date in GetCalendarDates())
+    {
+        <div class="@GetDateClass(date)" @onclick="() => SelectDate(date)">
+            <div class="text-sm font-medium">@date.Day</div>
+            
+            @* 顯示工作紀錄數量和工時 *@
+            @if (WorkLogsByDate.ContainsKey(date))
+            {
+                var logs = WorkLogsByDate[date];
+                var totalHours = logs.Sum(l => l.WorkHours);
+                
+                <div class="calendar-log-count">@logs.Count</div>
+                <div class="work-hours-badge">@totalHours.ToString("0.#")h</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public DateTime CurrentMonth { get; set; } = DateTime.Today;
+
+    [Parameter]
+    public Dictionary<DateOnly, List<WorkLogResponse>> WorkLogsByDate { get; set; } = new();
+
+    [Parameter]
+    public DateOnly? SelectedDate { get; set; }
+
+    [Parameter]
+    public EventCallback<DateOnly> OnDateSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime> OnMonthChanged { get; set; }
+
+    private DateTime currentMonth;
+    private DateOnly today = DateOnly.FromDateTime(DateTime.Today);
+
+    protected override void OnParametersSet()
+    {
+        currentMonth = CurrentMonth;
+    }
+
+    private List<DateOnly> GetCalendarDates()
+    {
+        var dates = new List<DateOnly>();
+        var firstDayOfMonth = new DateOnly(currentMonth.Year, currentMonth.Month, 1);
+        var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+
+        // 取得本月第一天是星期幾 (0=日, 1=一, ..., 6=六)
+        int startDayOfWeek = (int)firstDayOfMonth.DayOfWeek;
+
+        // 填充上個月的日期
+        var previousMonthStart = firstDayOfMonth.AddDays(-startDayOfWeek);
+        for (int i = 0; i < startDayOfWeek; i++)
+        {
+            dates.Add(previousMonthStart.AddDays(i));
+        }
+
+        // 填充本月的日期
+        for (int day = 1; day <= lastDayOfMonth.Day; day++)
+        {
+            dates.Add(new DateOnly(currentMonth.Year, currentMonth.Month, day));
+        }
+
+        // 填充下個月的日期以完成6週
+        int remainingDays = 42 - dates.Count; // 6週 = 42天
+        var nextMonthStart = lastDayOfMonth.AddDays(1);
+        for (int i = 0; i < remainingDays; i++)
+        {
+            dates.Add(nextMonthStart.AddDays(i));
+        }
+
+        return dates;
+    }
+
+    private string GetDateClass(DateOnly date)
+    {
+        var classes = new List<string> { "calendar-day" };
+
+        // 是否為當前月份
+        if (date.Month != currentMonth.Month)
+        {
+            classes.Add("calendar-day-disabled");
+        }
+
+        // 是否為今天
+        if (date == today)
+        {
+            classes.Add("calendar-day-today");
+        }
+
+        // 是否被選中
+        if (date == SelectedDate)
+        {
+            classes.Add("calendar-day-selected");
+        }
+
+        // 是否有工作紀錄
+        if (WorkLogsByDate.ContainsKey(date))
+        {
+            classes.Add("calendar-day-has-logs");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private async Task SelectDate(DateOnly date)
+    {
+        // 只允許選擇當前月份的日期
+        if (date.Month != currentMonth.Month)
+            return;
+
+        await OnDateSelected.InvokeAsync(date);
+    }
+
+    private async Task PreviousMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        await OnMonthChanged.InvokeAsync(currentMonth);
+    }
+
+    private async Task NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        await OnMonthChanged.InvokeAsync(currentMonth);
+    }
+}

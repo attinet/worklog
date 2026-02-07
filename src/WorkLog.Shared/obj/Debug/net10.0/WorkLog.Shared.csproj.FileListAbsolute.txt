@@ -1,0 +1,15 @@
+D:\開發中\worklog\src\WorkLog.Shared\bin\Debug\net10.0\WorkLog.Shared.deps.json
+D:\開發中\worklog\src\WorkLog.Shared\bin\Debug\net10.0\WorkLog.Shared.dll
+D:\開發中\worklog\src\WorkLog.Shared\bin\Debug\net10.0\WorkLog.Shared.pdb
+D:\開發中\worklog\src\WorkLog.Shared\bin\Debug\net10.0\WorkLog.Domain.dll
+D:\開發中\worklog\src\WorkLog.Shared\bin\Debug\net10.0\WorkLog.Domain.pdb
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.csproj.AssemblyReference.cache
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.GeneratedMSBuildEditorConfig.editorconfig
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.AssemblyInfoInputs.cache
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.AssemblyInfo.cs
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.csproj.CoreCompileInputs.cache
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog..E33750E0.Up2Date
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.dll
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\refint\WorkLog.Shared.dll
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.pdb
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\ref\WorkLog.Shared.dll

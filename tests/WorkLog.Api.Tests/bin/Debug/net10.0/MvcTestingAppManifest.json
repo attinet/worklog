@@ -1,0 +1,6 @@
+{
+  "WorkLog.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\開發中\\worklog\\src\\WorkLog.Api",
+  "WorkLog.Domain, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\開發中\\worklog\\src\\WorkLog.Domain",
+  "WorkLog.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\開發中\\worklog\\src\\WorkLog.Infrastructure",
+  "WorkLog.Shared, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "D:\\開發中\\worklog\\src\\WorkLog.Shared"
+}

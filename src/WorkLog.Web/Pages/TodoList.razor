@@ -1,0 +1,261 @@
+@page "/todos"
+@using Microsoft.AspNetCore.Authorization
+@using WorkLog.Shared.DTOs.Todos
+@using WorkLog.Web.Services
+@inject TodoService TodoService
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">待辦事項</h1>
+        <button @onclick="NavigateToCreate" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+            ＋ 新增待辦
+        </button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p class="mt-4 text-gray-600">載入中...</p>
+        </div>
+    }
+    else
+    {
+        <!-- 統計卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-400">
+                <div class="text-sm text-gray-600">待處理</div>
+                <div class="text-2xl font-bold text-gray-800">@stats.PendingCount</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+                <div class="text-sm text-gray-600">進行中</div>
+                <div class="text-2xl font-bold text-blue-600">@stats.InProgressCount</div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+                <div class="text-sm text-gray-600">已完成</div>
+                <div class="text-2xl font-bold text-green-600">@stats.CompletedCount</div>
+            </div>
+        </div>
+
+        <!-- 篩選列 -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">狀態</label>
+                    <select @bind="query.Status" @bind:after="LoadTodos" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">全部</option>
+                        <option value="Pending">待處理</option>
+                        <option value="InProgress">進行中</option>
+                        <option value="Completed">已完成</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">優先順序</label>
+                    <select @bind="query.Priority" @bind:after="LoadTodos" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">全部</option>
+                        <option value="High">高</option>
+                        <option value="Medium">中</option>
+                        <option value="Low">低</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">關鍵字</label>
+                    <input type="text" @bind="query.Keyword" @bind:after="LoadTodos" placeholder="搜尋標題..." class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+                <div class="flex items-end">
+                    <button @onclick="ResetFilters" class="w-full px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                        清除篩選
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 待辦事項清單 -->
+        @if (todos.Count == 0)
+        {
+            <div class="text-center py-12 bg-white rounded-lg shadow-sm">
+                <p class="text-gray-500">沒有待辦事項</p>
+            </div>
+        }
+        else
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach (var todo in todos)
+                {
+                    <div class="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer @(todo.IsOverdue ? "border-l-4 border-red-500" : "")" @onclick="() => NavigateToDetail(todo.Id)">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-gray-800 flex-1">@todo.Title</h3>
+                            <span class="ml-2 px-2 py-1 text-xs rounded @GetPriorityClass(todo.Priority)">
+                                @GetPriorityText(todo.Priority)
+                            </span>
+                        </div>
+                        
+                        @if (todo.Category != null)
+                        {
+                            <div class="mb-2">
+                                <span class="inline-block px-2 py-1 text-xs rounded" style="background-color: @todo.Category.ColorCode; color: white;">
+                                    @todo.Category.Name
+                                </span>
+                            </div>
+                        }
+
+                        @if (todo.DueDate.HasValue)
+                        {
+                            <div class="text-sm text-gray-600 mb-2">
+                                📅 @todo.DueDate.Value.ToString("yyyy/MM/dd")
+                                @if (todo.IsOverdue)
+                                {
+                                    <span class="text-red-600 font-medium">（逾期）</span>
+                                }
+                            </div>
+                        }
+
+                        <div class="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                            @if (todo.SubTaskCount > 0)
+                            {
+                                <span>✓ @todo.CompletedSubTaskCount/@todo.SubTaskCount</span>
+                            }
+                            @if (todo.AttachmentCount > 0)
+                            {
+                                <span>📎 @todo.AttachmentCount</span>
+                            }
+                            @if (todo.CommentCount > 0)
+                            {
+                                <span>💬 @todo.CommentCount</span>
+                            }
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs px-2 py-1 rounded @GetStatusClass(todo.Status)">
+                                @GetStatusText(todo.Status)
+                            </span>
+                            <button @onclick:stopPropagation @onclick="() => DeleteTodo(todo.Id)" class="text-red-600 hover:text-red-800 text-sm">
+                                刪除
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- 分頁 -->
+            @if (totalPages > 1)
+            {
+                <div class="flex justify-center items-center mt-6 gap-2">
+                    <button @onclick="PreviousPage" disabled="@(query.Page <= 1)" class="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50">
+                        上一頁
+                    </button>
+                    <span class="px-4 py-2">第 @query.Page / @totalPages 頁</span>
+                    <button @onclick="NextPage" disabled="@(query.Page >= totalPages)" class="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50">
+                        下一頁
+                    </button>
+                </div>
+            }
+        }
+    }
+</div>
+
+@code {
+    private List<TodoItemListResponse> todos = new();
+    private TodoQueryDto query = new() { PageSize = 12 };
+    private int totalPages = 0;
+    private bool loading = true;
+    private (int PendingCount, int InProgressCount, int CompletedCount) stats = (0, 0, 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(LoadTodos(), LoadDashboard());
+    }
+
+    private async Task LoadTodos()
+    {
+        loading = true;
+        var result = await TodoService.GetTodosAsync(query);
+        if (result != null)
+        {
+            todos = result.Items.ToList();
+            totalPages = result.TotalPages;
+        }
+        loading = false;
+    }
+
+    private async Task LoadDashboard()
+    {
+        var dashboard = await TodoService.GetDashboardAsync();
+        if (dashboard != null)
+        {
+            stats = (dashboard.PendingCount, dashboard.InProgressCount, dashboard.CompletedCount);
+        }
+    }
+
+    private async Task DeleteTodo(int id)
+    {
+        if (await TodoService.DeleteTodoAsync(id))
+        {
+            await Task.WhenAll(LoadTodos(), LoadDashboard());
+        }
+    }
+
+    private async Task ResetFilters()
+    {
+        query.Status = null;
+        query.Priority = null;
+        query.Keyword = null;
+        query.Page = 1;
+        await LoadTodos();
+    }
+
+    private void NavigateToCreate() => Navigation.NavigateTo("/todos/create");
+    private void NavigateToDetail(int id) => Navigation.NavigateTo($"/todos/edit/{id}");
+    
+    private async Task PreviousPage()
+    {
+        if (query.Page > 1)
+        {
+            query.Page--;
+            await LoadTodos();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (query.Page < totalPages)
+        {
+            query.Page++;
+            await LoadTodos();
+        }
+    }
+
+    private string GetPriorityClass(string priority) => priority switch
+    {
+        "High" => "bg-red-100 text-red-800",
+        "Medium" => "bg-yellow-100 text-yellow-800",
+        "Low" => "bg-green-100 text-green-800",
+        _ => "bg-gray-100 text-gray-800"
+    };
+
+    private string GetPriorityText(string priority) => priority switch
+    {
+        "High" => "高",
+        "Medium" => "中",
+        "Low" => "低",
+        _ => priority
+    };
+
+    private string GetStatusClass(string status) => status switch
+    {
+        "Pending" => "bg-gray-100 text-gray-800",
+        "InProgress" => "bg-blue-100 text-blue-800",
+        "Completed" => "bg-green-100 text-green-800",
+        _ => "bg-gray-100 text-gray-800"
+    };
+
+    private string GetStatusText(string status) => status switch
+    {
+        "Pending" => "待處理",
+        "InProgress" => "進行中",
+        "Completed" => "已完成",
+        _ => status
+    };
+}

@@ -1,0 +1,58 @@
+@page "/admin"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject NavigationManager Navigation
+
+<PageTitle>系統管理</PageTitle>
+
+<h1 class="text-2xl font-bold text-gray-800 mb-6">系統管理</h1>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <a href="/admin/users" class="admin-card">
+        <div class="text-3xl mb-2">👥</div>
+        <h3 class="font-semibold text-gray-800">使用者權限管理</h3>
+        <p class="text-sm text-gray-500 mt-1">管理使用者角色與權限</p>
+    </a>
+
+    <a href="/admin/projects" class="admin-card">
+        <div class="text-3xl mb-2">📁</div>
+        <h3 class="font-semibold text-gray-800">專案名稱維護</h3>
+        <p class="text-sm text-gray-500 mt-1">管理可選擇的專案名稱</p>
+    </a>
+
+    <a href="/admin/departments" class="admin-card">
+        <div class="text-3xl mb-2">🏢</div>
+        <h3 class="font-semibold text-gray-800">業管單位維護</h3>
+        <p class="text-sm text-gray-500 mt-1">管理可選擇的業管單位</p>
+    </a>
+
+    <a href="/admin/work-types" class="admin-card">
+        <div class="text-3xl mb-2">🔧</div>
+        <h3 class="font-semibold text-gray-800">工作類型維護</h3>
+        <p class="text-sm text-gray-500 mt-1">管理可選擇的工作類型</p>
+    </a>
+
+    <a href="/admin/statuses" class="admin-card">
+        <div class="text-3xl mb-2">📊</div>
+        <h3 class="font-semibold text-gray-800">處理狀態維護</h3>
+        <p class="text-sm text-gray-500 mt-1">管理可選擇的處理狀態</p>
+    </a>
+</div>
+
+<style>
+    .admin-card {
+        display: block;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.15s;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    }
+    .admin-card:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 4px 6px rgb(0 0 0 / 0.07);
+        transform: translateY(-1px);
+    }
+</style>

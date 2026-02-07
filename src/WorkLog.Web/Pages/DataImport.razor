@@ -1,0 +1,307 @@
+@page "/data-import"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using WorkLog.Shared.DTOs.Export
+@using WorkLog.Web.Services
+@inject DataExportService ExportService
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">匯入資料</h1>
+
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">選擇匯入檔案</h2>
+
+        <!-- 檔案上傳 -->
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                選擇 ZIP 檔案
+            </label>
+            <InputFile OnChange="HandleFileSelected" accept=".zip" class="block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100
+                cursor-pointer" />
+            @if (selectedFile != null)
+            {
+                <p class="mt-2 text-sm text-gray-600">
+                    已選擇：<span class="font-medium">@selectedFile.Name</span>
+                    （@FormatFileSize(selectedFile.Size)）
+                </p>
+            }
+        </div>
+
+        <!-- 驗證按鈕 -->
+        @if (selectedFile != null && validationResult == null && importResult == null)
+        {
+            <button @onclick="ValidateFile" disabled="@isValidating"
+                    class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+                @if (isValidating)
+                {
+                    <span class="inline-flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        驗證中...
+                    </span>
+                }
+                else
+                {
+                    <span>🔍 驗證檔案</span>
+                }
+            </button>
+        }
+
+        <!-- 驗證結果 -->
+        @if (validationResult != null)
+        {
+            var result = validationResult;
+            <div class="mt-4 p-4 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+                <h3 class="font-semibold @(result.Success ? "text-green-800" : "text-red-800") mb-2">
+                    @(result.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+                </h3>
+                <p class="text-sm @(result.Success ? "text-green-700" : "text-red-700")">@result.Message</p>
+                
+                @if (result.Warnings.Any())
+                {
+                    <div class="mt-2">
+                        <p class="text-sm font-medium text-yellow-700">警告：</p>
+                        <ul class="text-sm text-yellow-600 list-disc list-inside">
+                            @foreach (var warning in result.Warnings)
+                            {
+                                <li>@warning</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (result.Errors.Any())
+                {
+                    <div class="mt-2">
+                        <p class="text-sm font-medium text-red-700">錯誤：</p>
+                        <ul class="text-sm text-red-600 list-disc list-inside">
+                            @foreach (var error in result.Errors)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (result.Success)
+                {
+                    <div class="mt-4">
+                        <button @onclick="ImportFile" disabled="@isImporting"
+                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            @if (isImporting)
+                            {
+                                <span class="inline-flex items-center">
+                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    匯入中...
+                                </span>
+                            }
+                            else
+                            {
+                                <span>📤 確認匯入</span>
+                            }
+                        </button>
+                        <button @onclick="Reset" class="ml-2 bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
+                            取消
+                        </button>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- 匯入結果 -->
+        @if (importResult != null)
+        {
+            var result = importResult;
+            <div class="mt-4 p-4 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+                <h3 class="font-semibold @(result.Success ? "text-green-800" : "text-red-800") mb-2">
+                    @(result.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+                </h3>
+                <p class="text-sm @(result.Success ? "text-green-700" : "text-red-700") mb-3">@result.Message</p>
+
+                @if (result.Success)
+                {
+                    var stats = result.Statistics;
+                    <div class="bg-white rounded p-3 text-sm space-y-2">
+                        <h4 class="font-semibold text-gray-800">匯入統計：</h4>
+                        <div class="grid grid-cols-2 gap-2 text-gray-700">
+                            <div class="bg-gray-50 p-2 rounded">
+                                <span class="font-medium">工作紀錄：</span>
+                                <span class="text-green-600">@stats.WorkLogsImported 筆成功</span>
+                                @if (stats.WorkLogsFailed > 0)
+                                {
+                                    <span class="text-red-600"> / @stats.WorkLogsFailed 筆失敗</span>
+                                }
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <span class="font-medium">待辦事項：</span>
+                                <span class="text-green-600">@stats.TodosImported 筆成功</span>
+                                @if (stats.TodosFailed > 0)
+                                {
+                                    <span class="text-red-600"> / @stats.TodosFailed 筆失敗</span>
+                                }
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <span class="font-medium">專案：</span>
+                                新增 @stats.ProjectsCreated / 跳過 @stats.ProjectsSkipped
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <span class="font-medium">部門：</span>
+                                新增 @stats.DepartmentsCreated / 跳過 @stats.DepartmentsSkipped
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex space-x-2">
+                        <button @onclick="NavigateToHome" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                            返回首頁
+                        </button>
+                        <button @onclick="Reset" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
+                            再次匯入
+                        </button>
+                    </div>
+                }
+
+                @if (result.Errors.Any())
+                {
+                    <div class="mt-2">
+                        <p class="text-sm font-medium text-red-700">錯誤詳情：</p>
+                        <ul class="text-sm text-red-600 list-disc list-inside max-h-40 overflow-y-auto">
+                            @foreach (var error in result.Errors)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- 說明 -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 class="font-semibold text-yellow-800 mb-2">⚠️ 匯入注意事項</h3>
+        <ul class="text-sm text-yellow-700 space-y-1">
+            <li>• 匯入的資料會新增到您的帳號中，不會刪除現有資料</li>
+            <li>• 如果參照資料（專案、部門等）已存在同名項目，將使用現有項目</li>
+            <li>• 匯入過程會在交易中執行，如果發生錯誤會自動回滾</li>
+            <li>• 建議先在測試環境驗證匯入檔案</li>
+            <li>• 大型檔案可能需要較長時間處理，請耐心等待</li>
+        </ul>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? selectedFile;
+    private byte[]? fileBytes;
+    private bool isValidating = false;
+    private bool isImporting = false;
+    private DataImportResultDto? validationResult;
+    private DataImportResultDto? importResult;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        fileBytes = null;
+        validationResult = null;
+        importResult = null;
+
+        if (selectedFile != null)
+        {
+            // 限制檔案大小 50MB
+            if (selectedFile.Size > 52428800)
+            {
+                validationResult = new DataImportResultDto
+                {
+                    Success = false,
+                    Errors = new List<string> { "檔案大小不可超過 50 MB" }
+                };
+                selectedFile = null;
+                return;
+            }
+
+            // 讀取檔案內容
+            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 52428800);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            fileBytes = ms.ToArray();
+        }
+    }
+
+    private async Task ValidateFile()
+    {
+        if (fileBytes == null) return;
+
+        isValidating = true;
+        try
+        {
+            validationResult = await ExportService.ValidateImportFileAsync(fileBytes);
+        }
+        catch (Exception ex)
+        {
+            validationResult = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"驗證失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isValidating = false;
+        }
+    }
+
+    private async Task ImportFile()
+    {
+        if (fileBytes == null) return;
+
+        isImporting = true;
+        try
+        {
+            importResult = await ExportService.ImportDataAsync(fileBytes);
+        }
+        catch (Exception ex)
+        {
+            importResult = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"匯入失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private void Reset()
+    {
+        selectedFile = null;
+        fileBytes = null;
+        validationResult = null;
+        importResult = null;
+    }
+
+    private void NavigateToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F2} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+}

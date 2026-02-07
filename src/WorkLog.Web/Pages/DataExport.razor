@@ -1,0 +1,125 @@
+@page "/data-export"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@using WorkLog.Web.Services
+@inject DataExportService ExportService
+@inject IJSRuntime JS
+@attribute [Authorize]
+
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">匯出資料</h1>
+
+    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">匯出選項</h2>
+
+        <div class="space-y-4">
+            <!-- 日期範圍 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">開始日期（選填）</label>
+                    <input type="date" @bind="startDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <p class="text-xs text-gray-500 mt-1">留空表示匯出所有歷史資料</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">結束日期（選填）</label>
+                    <input type="date" @bind="endDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <p class="text-xs text-gray-500 mt-1">留空表示匯出到今天</p>
+                </div>
+            </div>
+
+            <!-- 包含附件選項 -->
+            <div class="flex items-center">
+                <input type="checkbox" @bind="includeAttachments" id="includeAttachments" class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                <label for="includeAttachments" class="ml-2 text-sm text-gray-700">
+                    包含待辦事項附件檔案
+                    <span class="text-xs text-gray-500">（選擇此項會增加匯出檔案大小）</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 匯出按鈕 -->
+        <div class="mt-6">
+            <button @onclick="ExportData" disabled="@isExporting" 
+                    class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
+                @if (isExporting)
+                {
+                    <span class="inline-flex items-center">
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        匯出中...
+                    </span>
+                }
+                else
+                {
+                    <span>📥 開始匯出</span>
+                }
+            </button>
+        </div>
+
+        <!-- 訊息顯示 -->
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="mt-4 p-4 rounded-md @(isError ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800")">
+                @message
+            </div>
+        }
+    </div>
+
+    <!-- 說明 -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 class="font-semibold text-blue-800 mb-2">💡 匯出說明</h3>
+        <ul class="text-sm text-blue-700 space-y-1">
+            <li>• 匯出的資料包含工作紀錄和待辦事項</li>
+            <li>• 匯出檔案為 ZIP 格式，包含 JSON 資料檔和附件（如果勾選）</li>
+            <li>• 日期範圍僅影響工作紀錄和待辦事項的篩選</li>
+            <li>• 參照資料（專案、部門、工作類型等）會自動包含</li>
+            <li>• 匯出的檔案可用於備份或匯入到其他系統</li>
+        </ul>
+    </div>
+</div>
+
+@code {
+    private DateTime? startDate;
+    private DateTime? endDate;
+    private bool includeAttachments = false;
+    private bool isExporting = false;
+    private string message = string.Empty;
+    private bool isError = false;
+
+    private async Task ExportData()
+    {
+        isExporting = true;
+        message = string.Empty;
+        isError = false;
+
+        try
+        {
+            var bytes = await ExportService.ExportDataAsync(startDate, endDate, includeAttachments);
+
+            if (bytes == null)
+            {
+                message = "匯出失敗，請稍後再試";
+                isError = true;
+                return;
+            }
+
+            // 觸發檔案下載
+            var fileName = $"worklog-export-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
+            await JS.InvokeVoidAsync("downloadFile", fileName, "application/zip", bytes);
+
+            message = $"匯出成功！檔案已下載：{fileName}";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            message = $"匯出失敗：{ex.Message}";
+            isError = true;
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+}

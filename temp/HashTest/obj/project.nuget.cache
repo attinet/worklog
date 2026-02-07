@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "kW8KQ8pKrbY=",
+  "success": true,
+  "projectFilePath": "D:\\開發中\\worklog\\temp\\HashTest\\HashTest.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Administrator\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
