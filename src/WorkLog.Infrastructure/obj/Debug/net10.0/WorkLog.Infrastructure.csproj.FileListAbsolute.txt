@@ -11,6 +11,7 @@ D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog.Infras
 D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog.Infrastructure.AssemblyInfoInputs.cache
 D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog.Infrastructure.AssemblyInfo.cs
 D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog.Infrastructure.csproj.CoreCompileInputs.cache
+D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog.Infrastructure.sourcelink.json
 D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog..6FC6BB86.Up2Date
 D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\WorkLog.Infrastructure.dll
 D:\開發中\worklog\src\WorkLog.Infrastructure\obj\Debug\net10.0\refint\WorkLog.Infrastructure.dll

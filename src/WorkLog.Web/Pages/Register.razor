@@ -1,64 +1,97 @@
 @page "/register"
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>註冊</PageTitle>
 
-<div class="min-h-[70vh] flex items-center justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-sm border border-gray-200 w-full max-w-md">
-        <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">註冊帳號</h2>
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="min-height: 70vh;">
+    <MudPaper Elevation="3" Class="pa-8" Style="width: 100%;">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
+            📋 註冊帳號
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-6">
+            建立新帳號以開始使用工作紀錄系統
+        </MudText>
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-                @errorMessage
-            </div>
+            <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
         }
 
         @if (isSuccess)
         {
-            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4 text-sm">
+            <MudAlert Severity="Severity.Success" Class="mb-4">
                 註冊成功！即將跳轉至登入頁面...
-            </div>
+            </MudAlert>
         }
 
-        <EditForm Model="registerModel" OnValidSubmit="HandleRegister" FormName="register">
+        <EditForm Model="registerModel" OnValidSubmit="HandleRegister">
             <DataAnnotationsValidator />
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">使用者名稱</label>
-                <InputText @bind-Value="registerModel.Username" class="input-field" placeholder="3-50 字元" />
-                <ValidationMessage For="() => registerModel.Username" class="text-red-500 text-xs mt-1" />
-            </div>
+            <MudTextField @bind-Value="registerModel.Username" 
+                         Label="使用者名稱" 
+                         Variant="Variant.Outlined" 
+                         Margin="Margin.Dense"
+                         HelperText="3-50 字元"
+                         For="@(() => registerModel.Username)"
+                         Class="mb-4" />
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">電子郵件</label>
-                <InputText @bind-Value="registerModel.Email" class="input-field" placeholder="example@mail.com" />
-                <ValidationMessage For="() => registerModel.Email" class="text-red-500 text-xs mt-1" />
-            </div>
+            <MudTextField @bind-Value="registerModel.Email" 
+                         Label="電子郵件" 
+                         Variant="Variant.Outlined" 
+                         Margin="Margin.Dense"
+                         InputType="InputType.Email"
+                         For="@(() => registerModel.Email)"
+                         Class="mb-4" />
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">密碼</label>
-                <InputText type="password" @bind-Value="registerModel.Password" class="input-field" placeholder="至少 6 個字元" />
-                <ValidationMessage For="() => registerModel.Password" class="text-red-500 text-xs mt-1" />
-            </div>
+            <MudTextField @bind-Value="registerModel.Password" 
+                         Label="密碼" 
+                         Variant="Variant.Outlined" 
+                         InputType="InputType.Password"
+                         Margin="Margin.Dense"
+                         HelperText="至少 6 個字元"
+                         For="@(() => registerModel.Password)"
+                         OnKeyUp="@OnPasswordKeyUp"
+                         Class="mb-2" />
+            
+            @if (!string.IsNullOrEmpty(registerModel.Password))
+            {
+                <MudProgressLinear Color="@GetPasswordStrengthColor()" 
+                                  Value="@GetPasswordStrength()" 
+                                  Class="mb-4" />
+            }
+            else
+            {
+                <div class="mb-4"></div>
+            }
 
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">確認密碼</label>
-                <InputText type="password" @bind-Value="registerModel.ConfirmPassword" class="input-field" placeholder="再次輸入密碼" />
-                <ValidationMessage For="() => registerModel.ConfirmPassword" class="text-red-500 text-xs mt-1" />
-            </div>
+            <MudTextField @bind-Value="registerModel.ConfirmPassword" 
+                         Label="確認密碼" 
+                         Variant="Variant.Outlined" 
+                         InputType="InputType.Password"
+                         Margin="Margin.Dense"
+                         For="@(() => registerModel.ConfirmPassword)"
+                         Class="mb-6" />
 
-            <button type="submit" class="btn-primary w-full" disabled="@isLoading">
+            <MudButton ButtonType="ButtonType.Submit" 
+                      Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      FullWidth="true"
+                      Disabled="@isLoading"
+                      StartIcon="@Icons.Material.Filled.PersonAdd">
                 @(isLoading ? "註冊中..." : "註冊")
-            </button>
+            </MudButton>
         </EditForm>
 
-        <p class="mt-4 text-center text-sm text-gray-600">
-            已有帳號？<a href="/login" class="text-blue-600 hover:text-blue-800">前往登入</a>
-        </p>
-    </div>
-</div>
+        <MudDivider Class="my-4" />
+        
+        <MudText Typo="Typo.body2" Align="Align.Center">
+            已有帳號？
+            <MudLink Href="/login" Color="Color.Primary">前往登入</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
 
 @code {
     private RegisterRequest registerModel = new();
@@ -75,14 +108,46 @@
         if (success)
         {
             isSuccess = true;
+            Snackbar.Add("註冊成功！即將跳轉至登入頁面", Severity.Success);
             await Task.Delay(1500);
             Navigation.NavigateTo("/login");
         }
         else
         {
             errorMessage = "註冊失敗，使用者名稱或電子郵件可能已被使用";
+            Snackbar.Add("註冊失敗，請檢查輸入資訊", Severity.Error);
         }
 
         isLoading = false;
+    }
+
+    private void OnPasswordKeyUp()
+    {
+        StateHasChanged();
+    }
+
+    private int GetPasswordStrength()
+    {
+        if (string.IsNullOrEmpty(registerModel.Password)) return 0;
+        
+        int strength = 0;
+        if (registerModel.Password.Length >= 6) strength += 25;
+        if (registerModel.Password.Length >= 10) strength += 25;
+        if (registerModel.Password.Any(char.IsDigit)) strength += 25;
+        if (registerModel.Password.Any(char.IsUpper) && registerModel.Password.Any(char.IsLower)) strength += 25;
+        
+        return strength;
+    }
+
+    private Color GetPasswordStrengthColor()
+    {
+        var strength = GetPasswordStrength();
+        return strength switch
+        {
+            <= 25 => Color.Error,
+            <= 50 => Color.Warning,
+            <= 75 => Color.Info,
+            _ => Color.Success
+        };
     }
 }

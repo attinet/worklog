@@ -492,4 +492,355 @@ public class DataImportService : IDataImportService
         public Dictionary<int, int> ProcessStatusIdMap { get; set; } = new();
         public Dictionary<int, int> TodoCategoryIdMap { get; set; } = new();
     }
+
+    public async Task<DataImportResultDto> ValidateWorkLogImportFileAsync(byte[] zipFileBytes)
+    {
+        var result = new DataImportResultDto { Success = true };
+
+        try
+        {
+            using var memoryStream = new MemoryStream(zipFileBytes);
+            using var archive = new ZipArchive(memoryStream, ZipArchiveMode.Read);
+
+            // 檢查 data.json 是否存在
+            var dataEntry = archive.GetEntry("data.json");
+            if (dataEntry == null)
+            {
+                result.Success = false;
+                result.Errors.Add("ZIP 檔案中找不到 data.json");
+                return result;
+            }
+
+            // 嘗試解析 JSON
+            using var entryStream = dataEntry.Open();
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var exportData = await JsonSerializer.DeserializeAsync<WorkLogDataExportDto>(entryStream, jsonOptions);
+
+            if (exportData == null)
+            {
+                result.Success = false;
+                result.Errors.Add("無法解析 data.json");
+                return result;
+            }
+
+            // 檢查版本相容性
+            if (exportData.Version != "1.0")
+            {
+                result.Warnings.Add($"匯出版本 {exportData.Version} 可能與當前版本不相容");
+            }
+
+            // 檢查匯出類型
+            if (exportData.ExportType != "WorkLogData")
+            {
+                result.Warnings.Add($"匯出類型為 {exportData.ExportType}，可能不是工作紀錄備份檔案");
+            }
+
+            result.Message = $"驗證成功。包含 {exportData.WorkLogs.Count} 筆工作紀錄和 {exportData.Todos.Count} 筆待辦事項";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "驗證工作紀錄匯入檔案時發生錯誤");
+            result.Success = false;
+            result.Errors.Add($"驗證失敗: {ex.Message}");
+        }
+
+        return result;
+    }
+
+    public async Task<DataImportResultDto> ImportWorkLogDataAsync(int userId, byte[] zipFileBytes)
+    {
+        var result = new DataImportResultDto { Success = false };
+
+        // 先驗證
+        var validationResult = await ValidateWorkLogImportFileAsync(zipFileBytes);
+        if (!validationResult.Success)
+        {
+            return validationResult;
+        }
+
+        IDbContextTransaction? transaction = null;
+
+        try
+        {
+            _logger.LogInformation("開始匯入工作紀錄資料到使用者 {UserId}", userId);
+
+            // 解析資料
+            using var memoryStream = new MemoryStream(zipFileBytes);
+            using var archive = new ZipArchive(memoryStream, ZipArchiveMode.Read);
+
+            var dataEntry = archive.GetEntry("data.json")!;
+            WorkLogDataExportDto exportData;
+            
+            using (var entryStream = dataEntry.Open())
+            {
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                exportData = (await JsonSerializer.DeserializeAsync<WorkLogDataExportDto>(entryStream, jsonOptions))!;
+            }
+
+            // 開始交易
+            transaction = await _context.Database.BeginTransactionAsync();
+
+            // 準備附件資料字典
+            var attachmentDataDict = new Dictionary<int, byte[]>();
+            if (exportData.IncludesAttachments)
+            {
+                foreach (var todo in exportData.Todos)
+                {
+                    foreach (var attachment in todo.Attachments.Where(a => a.FilePath != null))
+                    {
+                        var attachmentEntry = archive.GetEntry(attachment.FilePath!);
+                        if (attachmentEntry != null)
+                        {
+                            using var attachmentStream = attachmentEntry.Open();
+                            using var ms = new MemoryStream();
+                            await attachmentStream.CopyToAsync(ms);
+                            attachmentDataDict[attachment.OriginalId] = ms.ToArray();
+                        }
+                    }
+                }
+            }
+
+            // 建立 ID 映射（用於處理工作紀錄中的參照）
+            var referenceIdMappings = await BuildReferenceIdMappingsAsync(exportData.WorkLogs, exportData.Todos);
+
+            // 匯入工作紀錄
+            await ImportWorkLogsAsync(userId, exportData.WorkLogs, referenceIdMappings, result.Statistics, result.Errors);
+
+            // 匯入待辦事項
+            await ImportTodosAsync(userId, exportData.Todos, referenceIdMappings, attachmentDataDict, result.Statistics, result.Errors);
+
+            // 提交交易
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            result.Success = true;
+            result.Message = "匯入成功完成";
+            
+            _logger.LogInformation("工作紀錄資料匯入完成: {WorkLogs} 筆工作紀錄, {Todos} 筆待辦事項", 
+                result.Statistics.WorkLogsImported, result.Statistics.TodosImported);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "匯入工作紀錄資料時發生錯誤");
+            
+            if (transaction != null)
+            {
+                await transaction.RollbackAsync();
+            }
+
+            result.Success = false;
+            result.Errors.Add($"匯入失敗: {ex.Message}");
+        }
+        finally
+        {
+            transaction?.Dispose();
+        }
+
+        return result;
+    }
+
+    public async Task<DataImportResultDto> ValidateSystemDataImportFileAsync(byte[] zipFileBytes)
+    {
+        var result = new DataImportResultDto { Success = true };
+
+        try
+        {
+            using var memoryStream = new MemoryStream(zipFileBytes);
+            using var archive = new ZipArchive(memoryStream, ZipArchiveMode.Read);
+
+            // 檢查 data.json 是否存在
+            var dataEntry = archive.GetEntry("data.json");
+            if (dataEntry == null)
+            {
+                result.Success = false;
+                result.Errors.Add("ZIP 檔案中找不到 data.json");
+                return result;
+            }
+
+            // 嘗試解析 JSON
+            using var entryStream = dataEntry.Open();
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var exportData = await JsonSerializer.DeserializeAsync<SystemDataExportDto>(entryStream, jsonOptions);
+
+            if (exportData == null)
+            {
+                result.Success = false;
+                result.Errors.Add("無法解析 data.json");
+                return result;
+            }
+
+            // 檢查版本相容性
+            if (exportData.Version != "1.0")
+            {
+                result.Warnings.Add($"匯出版本 {exportData.Version} 可能與當前版本不相容");
+            }
+
+            // 檢查匯出類型
+            if (exportData.ExportType != "SystemData")
+            {
+                result.Warnings.Add($"匯出類型為 {exportData.ExportType}，可能不是系統管理資料備份檔案");
+            }
+
+            var refData = exportData.ReferenceData;
+            result.Message = $"驗證成功。包含 {refData.Projects.Count} 個專案、" +
+                           $"{refData.Departments.Count} 個部門、" +
+                           $"{refData.WorkTypes.Count} 個工作類型、" +
+                           $"{refData.ProcessStatuses.Count} 個處理狀態、" +
+                           $"{refData.TodoCategories.Count} 個待辦分類";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "驗證系統管理資料匯入檔案時發生錯誤");
+            result.Success = false;
+            result.Errors.Add($"驗證失敗: {ex.Message}");
+        }
+
+        return result;
+    }
+
+    public async Task<DataImportResultDto> ImportSystemDataAsync(int userId, byte[] zipFileBytes)
+    {
+        var result = new DataImportResultDto { Success = false };
+
+        // 先驗證
+        var validationResult = await ValidateSystemDataImportFileAsync(zipFileBytes);
+        if (!validationResult.Success)
+        {
+            return validationResult;
+        }
+
+        IDbContextTransaction? transaction = null;
+
+        try
+        {
+            _logger.LogInformation("開始匯入系統管理資料（執行者: 使用者 {UserId}）", userId);
+
+            // 解析資料
+            using var memoryStream = new MemoryStream(zipFileBytes);
+            using var archive = new ZipArchive(memoryStream, ZipArchiveMode.Read);
+
+            var dataEntry = archive.GetEntry("data.json")!;
+            SystemDataExportDto exportData;
+            
+            using (var entryStream = dataEntry.Open())
+            {
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                exportData = (await JsonSerializer.DeserializeAsync<SystemDataExportDto>(entryStream, jsonOptions))!;
+            }
+
+            // 開始交易
+            transaction = await _context.Database.BeginTransactionAsync();
+
+            // 匯入參照資料
+            await ImportReferenceDataAsync(exportData.ReferenceData, result.Statistics);
+
+            // 提交交易
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            result.Success = true;
+            result.Message = "系統管理資料匯入成功完成";
+            
+            _logger.LogInformation("系統管理資料匯入完成");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "匯入系統管理資料時發生錯誤");
+            
+            if (transaction != null)
+            {
+                await transaction.RollbackAsync();
+            }
+
+            result.Success = false;
+            result.Errors.Add($"匯入失敗: {ex.Message}");
+        }
+        finally
+        {
+            transaction?.Dispose();
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 從工作紀錄和待辦事項中建立參照 ID 映射
+    /// </summary>
+    private async Task<ReferenceIdMappings> BuildReferenceIdMappingsAsync(
+        List<WorkLogExportDto> workLogs,
+        List<TodoExportDto> todos)
+    {
+        var mappings = new ReferenceIdMappings();
+
+        // 收集所有參照的名稱
+        var projectNames = workLogs.Select(w => w.ProjectName).Distinct().ToList();
+        var statusNames = workLogs.Select(w => w.ProcessStatusName).Distinct().ToList();
+        var deptNames = workLogs.SelectMany(w => w.Departments.Select(d => d.Name)).Distinct().ToList();
+        var workTypeNames = workLogs.SelectMany(w => w.WorkTypes.Select(t => t.Name)).Distinct().ToList();
+        var categoryNames = todos.Where(t => t.CategoryName != null).Select(t => t.CategoryName!).Distinct().ToList();
+
+        // 從資料庫查詢現有的參照資料
+        var projects = await _context.Projects.Where(p => projectNames.Contains(p.Name)).ToListAsync();
+        var statuses = await _context.ProcessStatuses.Where(s => statusNames.Contains(s.Name)).ToListAsync();
+        var departments = await _context.Departments.Where(d => deptNames.Contains(d.Name)).ToListAsync();
+        var workTypes = await _context.WorkTypes.Where(w => workTypeNames.Contains(w.Name)).ToListAsync();
+        var categories = await _context.TodoCategories.Where(c => categoryNames.Contains(c.Name)).ToListAsync();
+
+        // 建立名稱到 ID 的映射，然後根據原始 ID 建立映射
+        foreach (var workLog in workLogs)
+        {
+            var project = projects.FirstOrDefault(p => p.Name == workLog.ProjectName);
+            if (project != null)
+            {
+                mappings.ProjectIdMap[workLog.ProjectId] = project.Id;
+            }
+
+            var status = statuses.FirstOrDefault(s => s.Name == workLog.ProcessStatusName);
+            if (status != null)
+            {
+                mappings.ProcessStatusIdMap[workLog.ProcessStatusId] = status.Id;
+            }
+
+            foreach (var dept in workLog.Departments)
+            {
+                var department = departments.FirstOrDefault(d => d.Name == dept.Name);
+                if (department != null)
+                {
+                    mappings.DepartmentIdMap[dept.OriginalId] = department.Id;
+                }
+            }
+
+            foreach (var workType in workLog.WorkTypes)
+            {
+                var wt = workTypes.FirstOrDefault(w => w.Name == workType.Name);
+                if (wt != null)
+                {
+                    mappings.WorkTypeIdMap[workType.OriginalId] = wt.Id;
+                }
+            }
+        }
+
+        foreach (var todo in todos.Where(t => t.CategoryId.HasValue && t.CategoryName != null))
+        {
+            var category = categories.FirstOrDefault(c => c.Name == todo.CategoryName);
+            if (category != null)
+            {
+                mappings.TodoCategoryIdMap[todo.CategoryId!.Value] = category.Id;
+            }
+        }
+
+        return mappings;
+    }
 }

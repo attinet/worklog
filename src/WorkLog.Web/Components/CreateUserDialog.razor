@@ -1,0 +1,100 @@
+@using WorkLog.Shared.DTOs
+@using WorkLog.Shared.DTOs.Admin
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <EditForm Model="@request" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="request.Username" 
+                         Label="使用者名稱" 
+                         Variant="Variant.Outlined"
+                         For="@(() => request.Username)"
+                         Required="true"
+                         Immediate="true"
+                         Class="mb-4" />
+
+            <MudTextField @bind-Value="request.Email" 
+                         Label="電子郵件" 
+                         Variant="Variant.Outlined"
+                         For="@(() => request.Email)"
+                         InputType="InputType.Email"
+                         Required="true"
+                         Immediate="true"
+                         Class="mb-4" />
+
+            <MudTextField @bind-Value="request.Password" 
+                         Label="密碼" 
+                         Variant="Variant.Outlined"
+                         For="@(() => request.Password)"
+                         InputType="InputType.Password"
+                         Required="true"
+                         Immediate="true"
+                         HelperText="至少 6 個字元"
+                         Class="mb-4" />
+
+            <MudSelect @bind-Value="request.Role" 
+                      Label="角色" 
+                      Variant="Variant.Outlined"
+                      For="@(() => request.Role)"
+                      Required="true"
+                      Class="mb-4">
+                <MudSelectItem T="string" Value="@("User")">一般使用者</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Admin")">管理員</MudSelectItem>
+            </MudSelect>
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">取消</MudButton>
+        <MudButton OnClick="HandleSubmit" 
+                  Variant="Variant.Filled" 
+                  Color="Color.Primary"
+                  Disabled="@isSubmitting">
+            @(isSubmitting ? "處理中..." : "新增")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public EventCallback OnUserCreated { get; set; }
+
+    private CreateUserRequest request = new() { Role = "User" };
+    private bool isSubmitting = false;
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/admin/users", request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("使用者新增成功", Severity.Success);
+                await OnUserCreated.InvokeAsync();
+                MudDialog.Close();
+            }
+            else
+            {
+                var error = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+                Snackbar.Add(error?.Message ?? "新增使用者失敗", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"新增使用者失敗: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

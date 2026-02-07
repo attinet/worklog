@@ -1,5 +1,12 @@
 ﻿@using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Authorization
+@inject ThemeService ThemeService
+@implements IDisposable
+
+<MudThemeProvider IsDarkMode="@ThemeService.IsDarkMode" Theme="@ThemeService.Theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
 <CascadingAuthenticationState>
     <Router AppAssembly="@typeof(App).Assembly">
@@ -14,12 +21,25 @@
         <NotFound>
             <PageTitle>找不到頁面</PageTitle>
             <LayoutView Layout="@typeof(MainLayout)">
-                <div class="text-center py-10">
-                    <h1 class="text-2xl font-bold text-gray-800 mb-4">找不到頁面</h1>
-                    <p class="text-gray-600 mb-6">抱歉，您要找的頁面不存在。</p>
-                    <a href="/" class="btn-primary">返回首頁</a>
-                </div>
+                <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-16 text-center">
+                    <MudText Typo="Typo.h3" Class="mb-4">找不到頁面</MudText>
+                    <MudText Typo="Typo.body1" Class="mb-6">抱歉，您要找的頁面不存在。</MudText>
+                    <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary">返回首頁</MudButton>
+                </MudContainer>
             </LayoutView>
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ThemeService.InitializeAsync();
+        ThemeService.OnThemeChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        ThemeService.OnThemeChanged -= StateHasChanged;
+    }
+}

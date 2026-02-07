@@ -1,0 +1,47 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized Context="auth">
+        <div class="d-flex align-center">
+            <MudMenu Icon="@Icons.Material.Filled.AccountCircle" 
+                     Color="Color.Inherit" 
+                     AnchorOrigin="Origin.BottomRight" 
+                     TransformOrigin="Origin.TopRight"
+                     Label="@auth.User.Identity?.Name">
+                <MudMenuItem>
+                    <div class="px-4 py-2">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            @auth.User.Identity?.Name
+                        </MudText>
+                        @if (auth.User.IsInRole("Admin"))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="mt-1">管理員</MudChip>
+                        }
+                    </div>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="HandleLogout">
+                    登出
+                </MudMenuItem>
+            </MudMenu>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <MudButton Href="/login" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Login">
+            登入
+        </MudButton>
+        <MudButton Href="/register" Variant="Variant.Text" Color="Color.Secondary">
+            註冊
+        </MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login");
+    }
+}

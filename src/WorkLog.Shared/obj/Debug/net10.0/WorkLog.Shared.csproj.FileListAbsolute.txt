@@ -8,6 +8,7 @@ D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.Generat
 D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.AssemblyInfoInputs.cache
 D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.AssemblyInfo.cs
 D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.csproj.CoreCompileInputs.cache
+D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.sourcelink.json
 D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog..E33750E0.Up2Date
 D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\WorkLog.Shared.dll
 D:\開發中\worklog\src\WorkLog.Shared\obj\Debug\net10.0\refint\WorkLog.Shared.dll

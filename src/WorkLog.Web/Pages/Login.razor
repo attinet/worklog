@@ -1,45 +1,60 @@
 @page "/login"
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>登入</PageTitle>
 
-<div class="min-h-[70vh] flex items-center justify-center">
-    <div class="bg-white p-8 rounded-lg shadow-sm border border-gray-200 w-full max-w-md">
-        <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">登入</h2>
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="min-height: 70vh;">
+    <MudPaper Elevation="3" Class="pa-8" Style="width: 100%;">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
+            📋 登入
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-6">
+            歡迎回到工作紀錄系統
+        </MudText>
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-                @errorMessage
-            </div>
+            <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
         }
 
-        <EditForm Model="loginModel" OnValidSubmit="HandleLogin" FormName="login">
+        <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
             <DataAnnotationsValidator />
+            
+            <MudTextField @bind-Value="loginModel.Username" 
+                         Label="使用者名稱" 
+                         Variant="Variant.Outlined" 
+                         Margin="Margin.Dense"
+                         For="@(() => loginModel.Username)"
+                         Class="mb-4" />
 
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">使用者名稱</label>
-                <InputText @bind-Value="loginModel.Username" class="input-field" placeholder="輸入使用者名稱" />
-                <ValidationMessage For="() => loginModel.Username" class="text-red-500 text-xs mt-1" />
-            </div>
+            <MudTextField @bind-Value="loginModel.Password" 
+                         Label="密碼" 
+                         Variant="Variant.Outlined" 
+                         InputType="InputType.Password"
+                         Margin="Margin.Dense"
+                         For="@(() => loginModel.Password)"
+                         Class="mb-6" />
 
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">密碼</label>
-                <InputText type="password" @bind-Value="loginModel.Password" class="input-field" placeholder="輸入密碼" />
-                <ValidationMessage For="() => loginModel.Password" class="text-red-500 text-xs mt-1" />
-            </div>
-
-            <button type="submit" class="btn-primary w-full" disabled="@isLoading">
+            <MudButton ButtonType="ButtonType.Submit" 
+                      Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      FullWidth="true"
+                      Disabled="@isLoading"
+                      StartIcon="@Icons.Material.Filled.Login">
                 @(isLoading ? "登入中..." : "登入")
-            </button>
+            </MudButton>
         </EditForm>
 
-        <p class="mt-4 text-center text-sm text-gray-600">
-            還沒有帳號？<a href="/register" class="text-blue-600 hover:text-blue-800">前往註冊</a>
-        </p>
-    </div>
-</div>
+        <MudDivider Class="my-4" />
+        
+        <MudText Typo="Typo.body2" Align="Align.Center">
+            還沒有帳號？
+            <MudLink Href="/register" Color="Color.Primary">前往註冊</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
 
 @code {
     private LoginRequest loginModel = new();
@@ -61,11 +76,13 @@
         var result = await AuthService.Login(loginModel);
         if (result != null)
         {
+            Snackbar.Add("登入成功！", Severity.Success);
             Navigation.NavigateTo("/");
         }
         else
         {
             errorMessage = "使用者名稱或密碼錯誤";
+            Snackbar.Add("登入失敗，請檢查您的帳號密碼", Severity.Error);
         }
 
         isLoading = false;

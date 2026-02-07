@@ -5,6 +5,7 @@ D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.Generat
 D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.AssemblyInfoInputs.cache
 D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.AssemblyInfo.cs
 D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.csproj.CoreCompileInputs.cache
+D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.sourcelink.json
 D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.dll
 D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\refint\WorkLog.Domain.dll
 D:\開發中\worklog\src\WorkLog.Domain\obj\Debug\net10.0\WorkLog.Domain.pdb

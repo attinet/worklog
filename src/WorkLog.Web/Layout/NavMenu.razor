@@ -1,0 +1,54 @@
+@using Microsoft.AspNetCore.Components.Authorization
+
+<MudNavMenu>
+    <AuthorizeView>
+        <Authorized Context="authNav">
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                工作紀錄
+            </MudNavLink>
+            <MudNavLink Href="/worklogs/create" Icon="@Icons.Material.Filled.Add">
+                新增紀錄
+            </MudNavLink>
+            <MudNavLink Href="/todos" Icon="@Icons.Material.Filled.CheckCircle">
+                待辦事項
+            </MudNavLink>
+            
+            <MudDivider Class="my-2" />
+            
+            <MudNavGroup Title="資料管理" Icon="@Icons.Material.Filled.Storage" Expanded="false">
+                <MudNavLink Href="/data-export" Icon="@Icons.Material.Filled.Download">
+                    資料匯出
+                </MudNavLink>
+                <MudNavLink Href="/data-import" Icon="@Icons.Material.Filled.Upload">
+                    資料匯入
+                </MudNavLink>
+            </MudNavGroup>
+            
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <MudDivider Class="my-2" />
+                    <MudNavGroup Title="系統管理" Icon="@Icons.Material.Filled.Settings" Expanded="false">
+                        <MudNavLink Href="/admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Match="NavLinkMatch.All">
+                            管理首頁
+                        </MudNavLink>
+                        <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People" Match="NavLinkMatch.All">
+                            使用者管理
+                        </MudNavLink>
+                        <MudNavLink Href="/admin/projects" Icon="@Icons.Material.Filled.Work" Match="NavLinkMatch.All">
+                            專案維護
+                        </MudNavLink>
+                        <MudNavLink Href="/admin/departments" Icon="@Icons.Material.Filled.Business" Match="NavLinkMatch.All">
+                            部門維護
+                        </MudNavLink>
+                        <MudNavLink Href="/admin/work-types" Icon="@Icons.Material.Filled.Category" Match="NavLinkMatch.All">
+                            工作類型維護
+                        </MudNavLink>
+                        <MudNavLink Href="/admin/statuses" Icon="@Icons.Material.Filled.Flag" Match="NavLinkMatch.All">
+                            狀態維護
+                        </MudNavLink>
+                    </MudNavGroup>
+                </Authorized>
+            </AuthorizeView>
+        </Authorized>
+    </AuthorizeView>
+</MudNavMenu>

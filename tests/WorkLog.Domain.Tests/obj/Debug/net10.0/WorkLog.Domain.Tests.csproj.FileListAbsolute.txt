@@ -88,6 +88,7 @@ D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog.Domain
 D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog.Domain.Tests.AssemblyInfoInputs.cache
 D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog.Domain.Tests.AssemblyInfo.cs
 D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog.Domain.Tests.csproj.CoreCompileInputs.cache
+D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog.Domain.Tests.sourcelink.json
 D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog..638D6EDD.Up2Date
 D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\WorkLog.Domain.Tests.dll
 D:\開發中\worklog\tests\WorkLog.Domain.Tests\obj\Debug\net10.0\refint\WorkLog.Domain.Tests.dll

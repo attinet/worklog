@@ -4,157 +4,207 @@
 @using WorkLog.Web.Services
 @inject TodoService TodoService
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @attribute [Authorize]
 
-<div class="container mx-auto px-4 py-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">待辦事項</h1>
-        <button @onclick="NavigateToCreate" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
-            ＋ 新增待辦
-        </button>
-    </div>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudPaper Elevation="0" Class="mb-4">
+        <div class="d-flex justify-space-between align-center">
+            <MudText Typo="Typo.h4">待辦事項</MudText>
+            <MudButton Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      StartIcon="@Icons.Material.Filled.Add"
+                      OnClick="NavigateToCreate">
+                新增待辦
+            </MudButton>
+        </div>
+    </MudPaper>
 
     @if (loading)
     {
-        <div class="text-center py-12">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="mt-4 text-gray-600">載入中...</p>
-        </div>
+        <MudPaper Elevation="2" Class="pa-8 text-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-2">載入中...</MudText>
+        </MudPaper>
     }
     else
     {
         <!-- 統計卡片 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-400">
-                <div class="text-sm text-gray-600">待處理</div>
-                <div class="text-2xl font-bold text-gray-800">@stats.PendingCount</div>
-            </div>
-            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
-                <div class="text-sm text-gray-600">進行中</div>
-                <div class="text-2xl font-bold text-blue-600">@stats.InProgressCount</div>
-            </div>
-            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
-                <div class="text-sm text-gray-600">已完成</div>
-                <div class="text-2xl font-bold text-green-600">@stats.CompletedCount</div>
-            </div>
-        </div>
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-left: 4px solid #9e9e9e">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">待處理</MudText>
+                    <MudText Typo="Typo.h4">@stats.PendingCount</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-left: 4px solid var(--mud-palette-info)">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">進行中</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Info">@stats.InProgressCount</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-left: 4px solid var(--mud-palette-success)">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">已完成</MudText>
+                    <MudText Typo="Typo.h4" Color="Color.Success">@stats.CompletedCount</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
 
         <!-- 篩選列 -->
-        <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">狀態</label>
-                    <select @bind="query.Status" @bind:after="LoadTodos" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="">全部</option>
-                        <option value="Pending">待處理</option>
-                        <option value="InProgress">進行中</option>
-                        <option value="Completed">已完成</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">優先順序</label>
-                    <select @bind="query.Priority" @bind:after="LoadTodos" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="">全部</option>
-                        <option value="High">高</option>
-                        <option value="Medium">中</option>
-                        <option value="Low">低</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">關鍵字</label>
-                    <input type="text" @bind="query.Keyword" @bind:after="LoadTodos" placeholder="搜尋標題..." class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                </div>
-                <div class="flex items-end">
-                    <button @onclick="ResetFilters" class="w-full px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" 
+                              Value="@query.Status" 
+                              Label="狀態" 
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Clearable="true"
+                              ValueChanged="@(async (string val) => { query.Status = val; await LoadTodos(); })">
+                        <MudSelectItem T="string" Value="@("")">全部</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Pending")">待處理</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("InProgress")">進行中</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Completed")">已完成</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" 
+                              Value="@query.Priority" 
+                              Label="優先順序" 
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Clearable="true"
+                              ValueChanged="@(async (string val) => { query.Priority = val; await LoadTodos(); })">
+                        <MudSelectItem T="string" Value="@("")">全部</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("High")">高</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Medium")">中</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Low")">低</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudTextField @bind-Value="query.Keyword" 
+                                 Label="關鍵字" 
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 Placeholder="搜尋標題..."
+                                 Immediate="true"
+                                 DebounceInterval="500"
+                                 OnDebounceIntervalElapsed="@(async (string _) => await LoadTodos())" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="2" Class="d-flex align-end">
+                    <MudButton Variant="Variant.Outlined" 
+                              OnClick="ResetFilters"
+                              FullWidth="true"
+                              StartIcon="@Icons.Material.Filled.FilterAltOff">
                         清除篩選
-                    </button>
-                </div>
-            </div>
-        </div>
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
         <!-- 待辦事項清單 -->
         @if (todos.Count == 0)
         {
-            <div class="text-center py-12 bg-white rounded-lg shadow-sm">
-                <p class="text-gray-500">沒有待辦事項</p>
-            </div>
+            <MudPaper Elevation="2" Class="pa-8 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary">沒有待辦事項</MudText>
+            </MudPaper>
         }
         else
         {
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <MudGrid>
                 @foreach (var todo in todos)
                 {
-                    <div class="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer @(todo.IsOverdue ? "border-l-4 border-red-500" : "")" @onclick="() => NavigateToDetail(todo.Id)">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-semibold text-gray-800 flex-1">@todo.Title</h3>
-                            <span class="ml-2 px-2 py-1 text-xs rounded @GetPriorityClass(todo.Priority)">
-                                @GetPriorityText(todo.Priority)
-                            </span>
-                        </div>
-                        
-                        @if (todo.Category != null)
-                        {
-                            <div class="mb-2">
-                                <span class="inline-block px-2 py-1 text-xs rounded" style="background-color: @todo.Category.ColorCode; color: white;">
-                                    @todo.Category.Name
-                                </span>
+                    var currentTodo = todo;
+                    <MudItem xs="12" sm="6" lg="4">
+                        <MudCard Outlined="true" Style="@(currentTodo.IsOverdue ? "border-left: 4px solid var(--mud-palette-error)" : "")">
+                            <MudCardContent>
+                                <div @onclick="() => NavigateToDetail(currentTodo.Id)" style="cursor: pointer;">
+                                    <div class="d-flex justify-space-between align-start mb-2">
+                                        <MudText Typo="Typo.h6" Class="flex-grow-1">@currentTodo.Title</MudText>
+                                        <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(currentTodo.Priority)" Class="ml-2">
+                                            @GetPriorityText(currentTodo.Priority)
+                                        </MudChip>
+                                    </div>
+                                    
+                                    @if (currentTodo.Category != null)
+                                    {
+                                        <div class="mb-2">
+                                            <MudChip T="string" Size="Size.Small" Style="@($"background-color: {currentTodo.Category.ColorCode}; color: white;")">
+                                                @currentTodo.Category.Name
+                                            </MudChip>
+                                        </div>
+                                    }
+
+                                    @if (currentTodo.DueDate.HasValue)
+                                    {
+                                        <MudText Typo="Typo.body2" Color="@(currentTodo.IsOverdue ? Color.Error : Color.Secondary)" Class="mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" /> 
+                                            @currentTodo.DueDate.Value.ToString("yyyy/MM/dd")
+                                            @if (currentTodo.IsOverdue)
+                                            {
+                                                <strong>（逾期）</strong>
+                                            }
+                                        </MudText>
+                                    }
+
+                                    <MudStack Row="true" Spacing="2" Class="mb-2">
+                                        @if (currentTodo.SubTaskCount > 0)
+                                        {
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" /> 
+                                                @currentTodo.CompletedSubTaskCount/@currentTodo.SubTaskCount
+                                            </MudText>
+                                        }
+                                        @if (currentTodo.AttachmentCount > 0)
+                                        {
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" /> 
+                                                @currentTodo.AttachmentCount
+                                            </MudText>
+                                        }
+                                    @if (currentTodo.CommentCount > 0)
+                                    {
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Comment" Size="Size.Small" /> 
+                                            @currentTodo.CommentCount
+                                        </MudText>
+                                    }
+                                </MudStack>
+
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(currentTodo.Status)">
+                                    @GetStatusText(currentTodo.Status)
+                                </MudChip>
                             </div>
-                        }
 
-                        @if (todo.DueDate.HasValue)
-                        {
-                            <div class="text-sm text-gray-600 mb-2">
-                                📅 @todo.DueDate.Value.ToString("yyyy/MM/dd")
-                                @if (todo.IsOverdue)
-                                {
-                                    <span class="text-red-600 font-medium">（逾期）</span>
-                                }
+                            <div class="d-flex justify-end mt-2">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                              Color="Color.Error" 
+                                              Size="Size.Small"
+                                              OnClick="@(() => DeleteTodo(currentTodo.Id))" />
                             </div>
-                        }
-
-                        <div class="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                            @if (todo.SubTaskCount > 0)
-                            {
-                                <span>✓ @todo.CompletedSubTaskCount/@todo.SubTaskCount</span>
-                            }
-                            @if (todo.AttachmentCount > 0)
-                            {
-                                <span>📎 @todo.AttachmentCount</span>
-                            }
-                            @if (todo.CommentCount > 0)
-                            {
-                                <span>💬 @todo.CommentCount</span>
-                            }
-                        </div>
-
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs px-2 py-1 rounded @GetStatusClass(todo.Status)">
-                                @GetStatusText(todo.Status)
-                            </span>
-                            <button @onclick:stopPropagation @onclick="() => DeleteTodo(todo.Id)" class="text-red-600 hover:text-red-800 text-sm">
-                                刪除
-                            </button>
-                        </div>
-                    </div>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
                 }
-            </div>
+            </MudGrid>
 
             <!-- 分頁 -->
             @if (totalPages > 1)
             {
-                <div class="flex justify-center items-center mt-6 gap-2">
-                    <button @onclick="PreviousPage" disabled="@(query.Page <= 1)" class="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50">
-                        上一頁
-                    </button>
-                    <span class="px-4 py-2">第 @query.Page / @totalPages 頁</span>
-                    <button @onclick="NextPage" disabled="@(query.Page >= totalPages)" class="px-4 py-2 border rounded-md hover:bg-gray-50 disabled:opacity-50">
-                        下一頁
-                    </button>
-                </div>
+                <MudPaper Elevation="0" Class="d-flex justify-center mt-4">
+                    <MudPagination Count="@totalPages" 
+                                  Selected="@query.Page" 
+                                  SelectedChanged="@(async (int page) => { query.Page = page; await LoadTodos(); })"
+                                  ShowFirstButton="true"
+                                  ShowLastButton="true" />
+                </MudPaper>
             }
         }
     }
-</div>
+</MudContainer>
 
 @code {
     private List<TodoItemListResponse> todos = new();
@@ -191,9 +241,22 @@
 
     private async Task DeleteTodo(int id)
     {
+        bool? result = await DialogService.ShowMessageBox(
+            "刪除確認", 
+            "確定要刪除這個待辦事項嗎？", 
+            yesText: "刪除", 
+            cancelText: "取消");
+        
+        if (result != true) return;
+
         if (await TodoService.DeleteTodoAsync(id))
         {
+            Snackbar.Add("刪除成功", Severity.Success);
             await Task.WhenAll(LoadTodos(), LoadDashboard());
+        }
+        else
+        {
+            Snackbar.Add("刪除失敗", Severity.Error);
         }
     }
 
@@ -207,32 +270,33 @@
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/todos/create");
-    private void NavigateToDetail(int id) => Navigation.NavigateTo($"/todos/edit/{id}");
     
-    private async Task PreviousPage()
+    private async Task NavigateToDetail(int id)
     {
-        if (query.Page > 1)
+        var parameters = new DialogParameters<TodoDetailDialog>
         {
-            query.Page--;
-            await LoadTodos();
-        }
+            { x => x.TodoId, id }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<TodoDetailDialog>("待辦事項詳情", parameters, options);
+        
+        // 關閉對話框後重新載入資料以更新狀態
+        await Task.WhenAll(LoadTodos(), LoadDashboard());
     }
 
-    private async Task NextPage()
+    private Color GetPriorityColor(string priority) => priority switch
     {
-        if (query.Page < totalPages)
-        {
-            query.Page++;
-            await LoadTodos();
-        }
-    }
-
-    private string GetPriorityClass(string priority) => priority switch
-    {
-        "High" => "bg-red-100 text-red-800",
-        "Medium" => "bg-yellow-100 text-yellow-800",
-        "Low" => "bg-green-100 text-green-800",
-        _ => "bg-gray-100 text-gray-800"
+        "High" => Color.Error,
+        "Medium" => Color.Warning,
+        "Low" => Color.Success,
+        _ => Color.Default
     };
 
     private string GetPriorityText(string priority) => priority switch
@@ -243,12 +307,12 @@
         _ => priority
     };
 
-    private string GetStatusClass(string status) => status switch
+    private Color GetStatusColor(string status) => status switch
     {
-        "Pending" => "bg-gray-100 text-gray-800",
-        "InProgress" => "bg-blue-100 text-blue-800",
-        "Completed" => "bg-green-100 text-green-800",
-        _ => "bg-gray-100 text-gray-800"
+        "Pending" => Color.Default,
+        "InProgress" => Color.Info,
+        "Completed" => Color.Success,
+        _ => Color.Default
     };
 
     private string GetStatusText(string status) => status switch

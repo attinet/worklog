@@ -1,0 +1,685 @@
+@page "/data-import"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using WorkLog.Shared.DTOs.Export
+@using WorkLog.Web.Services
+@using System.Security.Claims
+@inject DataExportService ExportService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
+
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">資料匯入</h1>
+
+    <!-- 兩欄佈局 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- 左側：工作紀錄匯入 -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center mb-4">
+                <div class="text-3xl mr-3">📋</div>
+                <h2 class="text-xl font-semibold text-gray-800">工作紀錄匯入</h2>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">匯入工作紀錄和待辦事項備份檔</p>
+
+            <!-- 檔案上傳 -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">選擇 ZIP 檔案</label>
+                <InputFile OnChange="HandleWorkLogFileSelected" accept=".zip" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100
+                    cursor-pointer" />
+                @if (worklogFile != null)
+                {
+                    <p class="mt-2 text-xs text-gray-600">
+                        已選擇：<span class="font-medium">@worklogFile.Name</span>
+                        （@FormatFileSize(worklogFile.Size)）
+                    </p>
+                }
+            </div>
+
+            <!-- 驗證按鈕 -->
+            @if (worklogFile != null && worklogValidation == null && worklogImportResult == null)
+            {
+                <button @onclick="ValidateWorkLogFile" disabled="@isValidatingWorkLog"
+                        class="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg disabled:bg-gray-400 text-sm font-medium mb-2">
+                    @if (isValidatingWorkLog)
+                    {
+                        <span>驗證中...</span>
+                    }
+                    else
+                    {
+                        <span>🔍 驗證檔案</span>
+                    }
+                </button>
+            }
+
+            <!-- 驗證結果 -->
+            @if (worklogValidation != null)
+            {
+                var result = worklogValidation;
+                <div class="mt-4 p-3 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+                    <h3 class="font-semibold text-sm @(result.Success ? "text-green-800" : "text-red-800") mb-1">
+                        @(result.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+                    </h3>
+                    <p class="text-xs @(result.Success ? "text-green-700" : "text-red-700")">@result.Message</p>
+                    
+                    @if (result.Errors.Any())
+                    {
+                        <ul class="text-xs text-red-600 mt-2 space-y-0.5">
+                            @foreach (var error in result.Errors)
+                            {
+                                <li>• @error</li>
+                            }
+                        </ul>
+                    }
+
+                    @if (result.Success)
+                    {
+                        <div class="mt-3 flex space-x-2">
+                            <button @onclick="ImportWorkLogFile" disabled="@isImportingWorkLog"
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg disabled:bg-gray-400 text-xs font-medium">
+                                @(isImportingWorkLog ? "匯入中..." : "📤 確認匯入")
+                            </button>
+                            <button @onclick="ResetWorkLog" 
+                                    class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                                取消
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- 匯入結果 -->
+            @if (worklogImportResult != null)
+            {
+                var result = worklogImportResult;
+                <div class="mt-4 p-3 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+                    <h3 class="font-semibold text-sm @(result.Success ? "text-green-800" : "text-red-800") mb-1">
+                        @(result.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+                    </h3>
+                    <p class="text-xs @(result.Success ? "text-green-700" : "text-red-700") mb-2">@result.Message</p>
+
+                    @if (result.Success)
+                    {
+                        var stats = result.Statistics;
+                        <div class="bg-white rounded p-2 space-y-1 text-xs">
+                            <div class="flex justify-between">
+                                <span>工作紀錄：</span>
+                                <span class="text-green-600 font-medium">@stats.WorkLogsImported 筆</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>待辦事項：</span>
+                                <span class="text-green-600 font-medium">@stats.TodosImported 筆</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 flex space-x-2">
+                            <button @onclick="NavigateToHome" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                                返回首頁
+                            </button>
+                            <button @onclick="ResetWorkLog" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                                再次匯入
+                            </button>
+                        </div>
+                    }
+
+                    @if (result.Errors.Any())
+                    {
+                        <ul class="text-xs text-red-600 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                            @foreach (var error in result.Errors)
+                            {
+                                <li>• @error</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+
+            <!-- 說明 -->
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded p-3">
+                <p class="text-xs text-blue-800 font-medium mb-1">注意事項：</p>
+                <ul class="text-xs text-blue-700 space-y-0.5">
+                    <li>• 資料會新增到您的帳號中</li>
+                    <li>• 不會刪除現有資料</li>
+                    <li>• 失敗時會自動回滾</li>
+                    <li>• 檔案限制 50 MB</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 右側：系統管理資料匯入 -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <div class="flex items-center mb-4">
+                <div class="text-3xl mr-3">⚙️</div>
+                <h2 class="text-xl font-semibold text-gray-800">系統管理資料匯入</h2>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">匯入系統設定與參照資料</p>
+
+            @if (isAdmin)
+            {
+                <!-- 檔案上傳 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">選擇 ZIP 檔案</label>
+                    <InputFile OnChange="HandleSystemFileSelected" accept=".zip" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-purple-50 file:text-purple-700
+                        hover:file:bg-purple-100
+                        cursor-pointer" />
+                    @if (systemFile != null)
+                    {
+                        <p class="mt-2 text-xs text-gray-600">
+                            已選擇：<span class="font-medium">@systemFile.Name</span>
+                            （@FormatFileSize(systemFile.Size)）
+                        </p>
+                    }
+                </div>
+
+                <!-- 驗證按鈕 -->
+                @if (systemFile != null && systemValidation == null && systemImportResult == null)
+                {
+                    <button @onclick="ValidateSystemFile" disabled="@isValidatingSystem"
+                            class="w-full bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg disabled:bg-gray-400 text-sm font-medium mb-2">
+                        @if (isValidatingSystem)
+                        {
+                            <span>驗證中...</span>
+                        }
+                        else
+                        {
+                            <span>🔍 驗證檔案</span>
+                        }
+                    </button>
+                }
+
+                <!-- 驗證結果 -->
+                @if (systemValidation != null)
+                {
+                    var result = systemValidation;
+                    <div class="mt-4 p-3 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+                        <h3 class="font-semibold text-sm @(result.Success ? "text-green-800" : "text-red-800") mb-1">
+                            @(result.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+                        </h3>
+                        <p class="text-xs @(result.Success ? "text-green-700" : "text-red-700")">@result.Message</p>
+                        
+                        @if (result.Errors.Any())
+                        {
+                            <ul class="text-xs text-red-600 mt-2 space-y-0.5">
+                                @foreach (var error in result.Errors)
+                                {
+                                    <li>• @error</li>
+                                }
+                            </ul>
+                        }
+
+                        @if (result.Success)
+                        {
+                            <div class="mt-3 flex space-x-2">
+                                <button @onclick="ImportSystemFile" disabled="@isImportingSystem"
+                                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg disabled:bg-gray-400 text-xs font-medium">
+                                    @(isImportingSystem ? "匯入中..." : "📤 確認匯入")
+                                </button>
+                                <button @onclick="ResetSystem" 
+                                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                                    取消
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- 匯入結果 -->
+                @if (systemImportResult != null)
+                {
+                    var result = systemImportResult;
+                    <div class="mt-4 p-3 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+                        <h3 class="font-semibold text-sm @(result.Success ? "text-green-800" : "text-red-800") mb-1">
+                            @(result.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+                        </h3>
+                        <p class="text-xs @(result.Success ? "text-green-700" : "text-red-700") mb-2">@result.Message</p>
+
+                        @if (result.Success)
+                        {
+                            var stats = result.Statistics;
+                            <div class="bg-white rounded p-2 space-y-1 text-xs">
+                                <div class="flex justify-between">
+                                    <span>專案：</span>
+                                    <span class="font-medium">+@stats.ProjectsCreated / ↷@stats.ProjectsSkipped</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>部門：</span>
+                                    <span class="font-medium">+@stats.DepartmentsCreated / ↷@stats.DepartmentsSkipped</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>工作類型：</span>
+                                    <span class="font-medium">+@stats.WorkTypesCreated / ↷@stats.WorkTypesSkipped</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>處理狀態：</span>
+                                    <span class="font-medium">+@stats.ProcessStatusesCreated / ↷@stats.ProcessStatusesSkipped</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>待辦分類：</span>
+                                    <span class="font-medium">+@stats.TodoCategoriesCreated / ↷@stats.TodoCategoriesSkipped</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <button @onclick="ResetSystem" class="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                                    再次匯入
+                                </button>
+                            </div>
+                        }
+
+                        @if (result.Errors.Any())
+                        {
+                            <ul class="text-xs text-red-600 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                                @foreach (var error in result.Errors)
+                                {
+                                    <li>• @error</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+
+                <!-- 說明 -->
+                <div class="mt-4 bg-purple-50 border border-purple-200 rounded p-3">
+                    <p class="text-xs text-purple-800 font-medium mb-1">注意事項：</p>
+                    <ul class="text-xs text-purple-700 space-y-0.5">
+                        <li>• 僅匯入系統設定資料</li>
+                        <li>• 同名項目會被跳過</li>
+                        <li>• 建議先在測試環境驗證</li>
+                        <li>• 檔案限制 10 MB</li>
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <div class="bg-gray-50 border border-gray-200 rounded p-4 text-center">
+                    <div class="text-4xl mb-2">🔒</div>
+                    <p class="text-sm text-gray-600 font-medium">需要管理員權限</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        系統管理資料匯入功能僅限管理員使用
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+
+@code {
+    // 工作紀錄匯入
+    private IBrowserFile? worklogFile;
+    private byte[]? worklogBytes;
+    private bool isValidatingWorkLog = false;
+    private bool isImportingWorkLog = false;
+    private DataImportResultDto? worklogValidation;
+    private DataImportResultDto? worklogImportResult;
+
+    // 系統資料匯入
+    private IBrowserFile? systemFile;
+    private byte[]? systemBytes;
+    private bool isValidatingSystem = false;
+    private bool isImportingSystem = false;
+    private DataImportResultDto? systemValidation;
+    private DataImportResultDto? systemImportResult;
+
+    // 權限檢查
+    private bool isAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.IsInRole("Admin");
+    }
+
+    // 工作紀錄匯入相關方法
+    private async Task HandleWorkLogFileSelected(InputFileChangeEventArgs e)
+    {
+        worklogFile = e.File;
+        worklogBytes = null;
+        worklogValidation = null;
+        worklogImportResult = null;
+
+        if (worklogFile != null)
+        {
+            if (worklogFile.Size > 522428800)
+            {
+                worklogValidation = new DataImportResultDto
+                {
+                    Success = false,
+                    Errors = new List<string> { "檔案大小不可超過 50 MB" }
+                };
+                worklogFile = null;
+                return;
+            }
+
+            using var stream = worklogFile.OpenReadStream(maxAllowedSize: 52428800);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            worklogBytes = ms.ToArray();
+        }
+    }
+
+    private async Task ValidateWorkLogFile()
+    {
+        if (worklogBytes == null) return;
+
+        isValidatingWorkLog = true;
+        try
+        {
+            worklogValidation = await ExportService.ValidateWorkLogImportFileAsync(worklogBytes);
+        }
+        catch (Exception ex)
+        {
+            worklogValidation = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"驗證失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isValidatingWorkLog = false;
+        }
+    }
+
+    private async Task ImportWorkLogFile()
+    {
+        if (worklogBytes == null) return;
+
+        isImportingWorkLog = true;
+        try
+        {
+            worklogImportResult = await ExportService.ImportWorkLogDataAsync(worklogBytes);
+        }
+        catch (Exception ex)
+        {
+            worklogImportResult = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"匯入失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isImportingWorkLog = false;
+        }
+    }
+
+    private void ResetWorkLog()
+    {
+        worklogFile = null;
+        worklogBytes = null;
+        worklogValidation = null;
+        worklogImportResult = null;
+    }
+
+    // 系統資料匯入相關方法
+    private async Task HandleSystemFileSelected(InputFileChangeEventArgs e)
+    {
+        systemFile = e.File;
+        systemBytes = null;
+        systemValidation = null;
+        systemImportResult = null;
+
+        if (systemFile != null)
+        {
+            if (systemFile.Size > 10485760)
+            {
+                systemValidation = new DataImportResultDto
+                {
+                    Success = false,
+                    Errors = new List<string> { "檔案大小不可超過 10 MB" }
+                };
+                systemFile = null;
+                return;
+            }
+
+            using var stream = systemFile.OpenReadStream(maxAllowedSize: 10485760);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            systemBytes = ms.ToArray();
+        }
+    }
+
+    private async Task ValidateSystemFile()
+    {
+        if (systemBytes == null) return;
+
+        isValidatingSystem = true;
+        try
+        {
+            systemValidation = await ExportService.ValidateSystemDataImportFileAsync(systemBytes);
+        }
+        catch (Exception ex)
+        {
+            systemValidation = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"驗證失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isValidatingSystem = false;
+        }
+    }
+
+    private async Task ImportSystemFile()
+    {
+        if (systemBytes == null) return;
+
+        isImportingSystem = true;
+        try
+        {
+            systemImportResult = await ExportService.ImportSystemDataAsync(systemBytes);
+        }
+        catch (Exception ex)
+        {
+            systemImportResult = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"匯入失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isImportingSystem = false;
+        }
+    }
+
+    private void ResetSystem()
+    {
+        systemFile = null;
+        systemBytes = null;
+        systemValidation = null;
+        systemImportResult = null;
+    }
+
+    // 共用方法
+    private void NavigateToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F2} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+
+    // 內嵌組件類別
+    private class ImportResultComponent { }
+    private class ImportSuccessComponent { }
+}
+
+<!-- 簡化的匯入結果組件 -->
+@if (true) { }
+
+@functions {
+    private RenderFragment<(DataImportResultDto Result, bool IsImporting, EventCallback OnImport, EventCallback OnCancel)> WorkLogImportResult => context =>
+    @<div class="mt-4 p-3 rounded-md @(context.Result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+        <h3 class="font-semibold text-sm @(context.Result.Success ? "text-green-800" : "text-red-800") mb-1">
+            @(context.Result.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+        </h3>
+        <p class="text-xs @(context.Result.Success ? "text-green-700" : "text-red-700")">@context.Result.Message</p>
+        
+        @if (context.Result.Errors.Any())
+        {
+            <ul class="text-xs text-red-600 mt-2 space-y-0.5">
+                @foreach (var error in context.Result.Errors)
+                {
+                    <li>• @error</li>
+                }
+            </ul>
+        }
+
+        @if (context.Result.Success)
+        {
+            <div class="mt-3 flex space-x-2">
+                <button @onclick="context.OnImport" disabled="@context.IsImporting"
+                        class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg disabled:bg-gray-400 text-xs font-medium">
+                    @(context.IsImporting ? "匯入中..." : "📤 確認匯入")
+                </button>
+                <button @onclick="context.OnCancel" 
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                    取消
+                </button>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment<(DataImportResultDto Result, EventCallback OnReset, EventCallback OnNavigateHome)> WorkLogImportSuccess => context =>
+    @<div class="mt-4 p-3 rounded-md @(context.Result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+        <h3 class="font-semibold text-sm @(context.Result.Success ? "text-green-800" : "text-red-800") mb-1">
+            @(context.Result.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+        </h3>
+        <p class="text-xs @(context.Result.Success ? "text-green-700" : "text-red-700") mb-2">@context.Result.Message</p>
+
+        @if (context.Result.Success)
+        {
+            var stats = context.Result.Statistics;
+            <div class="bg-white rounded p-2 space-y-1 text-xs">
+                <div class="flex justify-between">
+                    <span>工作紀錄：</span>
+                    <span class="text-green-600 font-medium">@stats.WorkLogsImported 筆</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>待辦事項：</span>
+                    <span class="text-green-600 font-medium">@stats.TodosImported 筆</span>
+                </div>
+            </div>
+
+            <div class="mt-3 flex space-x-2">
+                <button @onclick="context.OnNavigateHome" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                    返回首頁
+                </button>
+                <button @onclick="context.OnReset" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                    再次匯入
+                </button>
+            </div>
+        }
+
+        @if (context.Result.Errors.Any())
+        {
+            <ul class="text-xs text-red-600 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                @foreach (var error in context.Result.Errors)
+                {
+                    <li>• @error</li>
+                }
+            </ul>
+        }
+    </div>;
+
+    private RenderFragment<(DataImportResultDto Result, bool IsImporting, EventCallback OnImport, EventCallback OnCancel)> SystemImportResult => context =>
+    @<div class="mt-4 p-3 rounded-md @(context.Result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+        <h3 class="font-semibold text-sm @(context.Result.Success ? "text-green-800" : "text-red-800") mb-1">
+            @(context.Result.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+        </h3>
+        <p class="text-xs @(context.Result.Success ? "text-green-700" : "text-red-700")">@context.Result.Message</p>
+        
+        @if (context.Result.Errors.Any())
+        {
+            <ul class="text-xs text-red-600 mt-2 space-y-0.5">
+                @foreach (var error in context.Result.Errors)
+                {
+                    <li>• @error</li>
+                }
+            </ul>
+        }
+
+        @if (context.Result.Success)
+        {
+            <div class="mt-3 flex space-x-2">
+                <button @onclick="context.OnImport" disabled="@context.IsImporting"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg disabled:bg-gray-400 text-xs font-medium">
+                    @(context.IsImporting ? "匯入中..." : "📤 確認匯入")
+                </button>
+                <button @onclick="context.OnCancel" 
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                    取消
+                </button>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment<(DataImportResultDto Result, EventCallback OnReset)> SystemImportSuccess => context =>
+    @<div class="mt-4 p-3 rounded-md @(context.Result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
+        <h3 class="font-semibold text-sm @(context.Result.Success ? "text-green-800" : "text-red-800") mb-1">
+            @(context.Result.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+        </h3>
+        <p class="text-xs @(context.Result.Success ? "text-green-700" : "text-red-700") mb-2">@context.Result.Message</p>
+
+        @if (context.Result.Success)
+        {
+            var stats = context.Result.Statistics;
+            <div class="bg-white rounded p-2 space-y-1 text-xs">
+                <div class="flex justify-between">
+                    <span>專案：</span>
+                    <span class="font-medium">+@stats.ProjectsCreated / ↷@stats.ProjectsSkipped</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>部門：</span>
+                    <span class="font-medium">+@stats.DepartmentsCreated / ↷@stats.DepartmentsSkipped</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>工作類型：</span>
+                    <span class="font-medium">+@stats.WorkTypesCreated / ↷@stats.WorkTypesSkipped</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>處理狀態：</span>
+                    <span class="font-medium">+@stats.ProcessStatusesCreated / ↷@stats.ProcessStatusesSkipped</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>待辦分類：</span>
+                    <span class="font-medium">+@stats.TodoCategoriesCreated / ↷@stats.TodoCategoriesSkipped</span>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button @onclick="context.OnReset" class="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-xs font-medium">
+                    再次匯入
+                </button>
+            </div>
+        }
+
+        @if (context.Result.Errors.Any())
+        {
+            <ul class="text-xs text-red-600 mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                @foreach (var error in context.Result.Errors)
+                {
+                    <li>• @error</li>
+                }
+            </ul>
+        }
+    </div>;
+}

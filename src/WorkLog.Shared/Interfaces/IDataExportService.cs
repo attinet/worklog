@@ -24,4 +24,36 @@ public interface IDataExportService
     /// <param name="attachmentFiles">附件檔案資料 (OriginalId -> FileData)</param>
     /// <returns>ZIP 檔案位元組陣列</returns>
     Task<byte[]> GenerateZipFileAsync(DataExportDto exportData, Dictionary<int, byte[]>? attachmentFiles);
+
+    /// <summary>
+    /// 匯出工作紀錄資料（工作紀錄 + 待辦事項）
+    /// </summary>
+    /// <param name="userId">使用者 ID</param>
+    /// <param name="startDate">開始日期 (選填)</param>
+    /// <param name="endDate">結束日期 (選填)</param>
+    /// <param name="includeAttachments">是否包含附件</param>
+    /// <returns>工作紀錄資料匯出物件</returns>
+    Task<WorkLogDataExportDto> ExportWorkLogDataAsync(int userId, DateTime? startDate, DateTime? endDate, bool includeAttachments);
+
+    /// <summary>
+    /// 匯出系統管理資料（參照資料）
+    /// </summary>
+    /// <param name="userId">使用者 ID（用於記錄）</param>
+    /// <returns>系統管理資料匯出物件</returns>
+    Task<SystemDataExportDto> ExportSystemDataAsync(int userId);
+
+    /// <summary>
+    /// 產生工作紀錄資料 ZIP 檔案
+    /// </summary>
+    /// <param name="exportData">工作紀錄匯出資料</param>
+    /// <param name="attachmentFiles">附件檔案資料 (OriginalId -> FileData)</param>
+    /// <returns>ZIP 檔案位元組陣列</returns>
+    Task<byte[]> GenerateWorkLogZipFileAsync(WorkLogDataExportDto exportData, Dictionary<int, byte[]>? attachmentFiles);
+
+    /// <summary>
+    /// 產生系統管理資料 ZIP 檔案
+    /// </summary>
+    /// <param name="exportData">系統管理資料匯出物件</param>
+    /// <returns>ZIP 檔案位元組陣列</returns>
+    Task<byte[]> GenerateSystemDataZipFileAsync(SystemDataExportDto exportData);
 }

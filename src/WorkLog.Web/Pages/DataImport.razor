@@ -3,254 +3,407 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using WorkLog.Shared.DTOs.Export
 @using WorkLog.Web.Services
+@using System.Security.Claims
 @inject DataExportService ExportService
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @attribute [Authorize]
 
-<div class="container mx-auto px-4 py-6 max-w-4xl">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">匯入資料</h1>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudText Typo="Typo.h4" Class="mb-6">資料匯入</MudText>
 
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">選擇匯入檔案</h2>
+    <MudGrid Spacing="3" Class="mb-6">
+        <!-- 左側：工作紀錄匯入 -->
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h3">📋</MudText>
+                    <MudText Typo="Typo.h6">工作紀錄匯入</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    匯入工作紀錄和待辦事項備份檔
+                </MudText>
 
-        <!-- 檔案上傳 -->
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                選擇 ZIP 檔案
-            </label>
-            <InputFile OnChange="HandleFileSelected" accept=".zip" class="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-md file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100
-                cursor-pointer" />
-            @if (selectedFile != null)
-            {
-                <p class="mt-2 text-sm text-gray-600">
-                    已選擇：<span class="font-medium">@selectedFile.Name</span>
-                    （@FormatFileSize(selectedFile.Size)）
-                </p>
-            }
-        </div>
-
-        <!-- 驗證按鈕 -->
-        @if (selectedFile != null && validationResult == null && importResult == null)
-        {
-            <button @onclick="ValidateFile" disabled="@isValidating"
-                    class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
-                @if (isValidating)
+                <!-- 檔案上傳 -->
+                <MudFileUpload T="IBrowserFile" Accept=".zip" FilesChanged="HandleWorkLogFileSelected" MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" 
+                                  Color="Color.Primary" 
+                                  StartIcon="@Icons.Material.Filled.CloudUpload"
+                                  FullWidth="true">
+                            選擇 ZIP 檔案
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                
+                @if (worklogFile != null)
                 {
-                    <span class="inline-flex items-center">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        驗證中...
-                    </span>
+                    <MudChip T="string" Color="Color.Info" Icon="@Icons.Material.Filled.AttachFile" Class="mt-2">
+                        @worklogFile.Name (@FormatFileSize(worklogFile.Size))
+                    </MudChip>
+                }
+
+                <!-- 驗證按鈕 -->
+                @if (worklogFile != null && worklogValidation == null && worklogImportResult == null)
+                {
+                    <MudButton Variant="Variant.Filled" 
+                              Color="Color.Warning" 
+                              FullWidth="true"
+                              OnClick="@(async () => await ValidateWorkLogFile())"
+                              Disabled="@isValidatingWorkLog"
+                              StartIcon="@Icons.Material.Filled.Search"
+                              Class="mt-3">
+                        @(isValidatingWorkLog ? "驗證中..." : "驗證檔案")
+                    </MudButton>
+                }
+
+                <!-- 驗證結果 -->
+                @if (worklogValidation != null)
+                {
+                    <MudAlert Severity="@(worklogValidation.Success ? Severity.Success : Severity.Error)" 
+                             Variant="Variant.Filled" 
+                             Class="mt-4">
+                        <MudText Typo="Typo.body2" Class="font-weight-bold">
+                            @(worklogValidation.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+                        </MudText>
+                        <MudText Typo="Typo.caption">@worklogValidation.Message</MudText>
+                        
+                        @if (worklogValidation.Errors.Any())
+                        {
+                            <div class="mt-2">
+                                @foreach (var error in worklogValidation.Errors)
+                                {
+                                    <MudText Typo="Typo.caption">• @error</MudText>
+                                }
+                            </div>
+                        }
+                    </MudAlert>
+
+                    @if (worklogValidation.Success)
+                    {
+                        <MudStack Row="true" Class="mt-3">
+                            <MudButton Variant="Variant.Filled" 
+                                      Color="Color.Success" 
+                                      OnClick="@(async () => await ImportWorkLogFile())"
+                                      Disabled="@isImportingWorkLog"
+                                      StartIcon="@Icons.Material.Filled.Upload"
+                                      Class="flex-grow-1">
+                                @(isImportingWorkLog ? "匯入中..." : "確認匯入")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                      OnClick="@(() => ResetWorkLog())">
+                                取消
+                            </MudButton>
+                        </MudStack>
+                    }
+                }
+
+                <!-- 匯入結果 -->
+                @if (worklogImportResult != null)
+                {
+                    <MudAlert Severity="@(worklogImportResult.Success ? Severity.Success : Severity.Error)" 
+                             Variant="Variant.Filled" 
+                             Class="mt-4">
+                        <MudText Typo="Typo.body2" Class="font-weight-bold">
+                            @(worklogImportResult.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mb-2">@worklogImportResult.Message</MudText>
+
+                        @if (worklogImportResult.Success)
+                        {
+                            var stats = worklogImportResult.Statistics;
+                            <MudPaper Elevation="0" Class="pa-2 mt-2" Style="background-color: rgba(255,255,255,0.2);">
+                                <MudStack Spacing="1">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption">工作紀錄：</MudText>
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold">@stats.WorkLogsImported 筆</MudText>
+                                    </MudStack>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                        <MudText Typo="Typo.caption">待辦事項：</MudText>
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold">@stats.TodosImported 筆</MudText>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        }
+
+                        @if (worklogImportResult.Errors.Any())
+                        {
+                            <div class="mt-2" style="max-height: 150px; overflow-y: auto;">
+                                @foreach (var error in worklogImportResult.Errors)
+                                {
+                                    <MudText Typo="Typo.caption">• @error</MudText>
+                                }
+                            </div>
+                        }
+                    </MudAlert>
+
+                    @if (worklogImportResult.Success)
+                    {
+                        <MudStack Row="true" Class="mt-3">
+                            <MudButton Variant="Variant.Filled" 
+                                      Color="Color.Primary" 
+                                      OnClick="@(() => NavigateToHome())"
+                                      Class="flex-grow-1">
+                                返回首頁
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                      OnClick="@(() => ResetWorkLog())">
+                                再次匯入
+                            </MudButton>
+                        </MudStack>
+                    }
+                }
+
+                <!-- 說明 -->
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-4">
+                    <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">注意事項：</MudText>
+                    <div class="py-0">
+                        <MudText Typo="Typo.caption">• 資料會新增到您的帳號中</MudText>
+                        <MudText Typo="Typo.caption">• 不會刪除現有資料</MudText>
+                        <MudText Typo="Typo.caption">• 失敗時會自動回滾</MudText>
+                        <MudText Typo="Typo.caption">• 檔案限制 50 MB</MudText>
+                    </div>
+                </MudAlert>
+            </MudPaper>
+        </MudItem>
+
+        <!-- 右側：系統管理資料匯入 -->
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h3">⚙️</MudText>
+                    <MudText Typo="Typo.h6">系統管理資料匯入</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    匯入系統設定與參照資料
+                </MudText>
+
+                @if (isAdmin)
+                {
+                    <!-- 檔案上傳 -->
+                    <MudFileUpload T="IBrowserFile" Accept=".zip" FilesChanged="HandleSystemFileSelected" MaximumFileCount="1">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" 
+                                      Color="Color.Secondary" 
+                                      StartIcon="@Icons.Material.Filled.CloudUpload"
+                                      FullWidth="true">
+                                選擇 ZIP 檔案
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    
+                    @if (systemFile != null)
+                    {
+                        <MudChip T="string" Color="Color.Secondary" Icon="@Icons.Material.Filled.AttachFile" Class="mt-2">
+                            @systemFile.Name (@FormatFileSize(systemFile.Size))
+                        </MudChip>
+                    }
+
+                    <!-- 驗證按鈕 -->
+                    @if (systemFile != null && systemValidation == null && systemImportResult == null)
+                    {
+                        <MudButton Variant="Variant.Filled" 
+                                  Color="Color.Warning" 
+                                  FullWidth="true"
+                                  OnClick="@(async () => await ValidateSystemFile())"
+                                  Disabled="@isValidatingSystem"
+                                  StartIcon="@Icons.Material.Filled.Search"
+                                  Class="mt-3">
+                            @(isValidatingSystem ? "驗證中..." : "驗證檔案")
+                        </MudButton>
+                    }
+
+                    <!-- 驗證結果 -->
+                    @if (systemValidation != null)
+                    {
+                        <MudAlert Severity="@(systemValidation.Success ? Severity.Success : Severity.Error)" 
+                                 Variant="Variant.Filled" 
+                                 Class="mt-4">
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">
+                                @(systemValidation.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
+                            </MudText>
+                            <MudText Typo="Typo.caption">@systemValidation.Message</MudText>
+                            
+                            @if (systemValidation.Errors.Any())
+                            {
+                                <div class="mt-2">
+                                    @foreach (var error in systemValidation.Errors)
+                                    {
+                                        <MudText Typo="Typo.caption">• @error</MudText>
+                                    }
+                                </div>
+                            }
+                        </MudAlert>
+
+                        @if (systemValidation.Success)
+                        {
+                            <MudStack Row="true" Class="mt-3">
+                                <MudButton Variant="Variant.Filled" 
+                                          Color="Color.Secondary" 
+                                          OnClick="@(async () => await ImportSystemFile())"
+                                          Disabled="@isImportingSystem"
+                                          StartIcon="@Icons.Material.Filled.Upload"
+                                          Class="flex-grow-1">
+                                    @(isImportingSystem ? "匯入中..." : "確認匯入")
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" 
+                                          OnClick="@(() => ResetSystem())">
+                                    取消
+                                </MudButton>
+                            </MudStack>
+                        }
+                    }
+
+                    <!-- 匯入結果 -->
+                    @if (systemImportResult != null)
+                    {
+                        <MudAlert Severity="@(systemImportResult.Success ? Severity.Success : Severity.Error)" 
+                                 Variant="Variant.Filled" 
+                                 Class="mt-4">
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">
+                                @(systemImportResult.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
+                            </MudText>
+                            <MudText Typo="Typo.caption" Class="mb-2">@systemImportResult.Message</MudText>
+
+                            @if (systemImportResult.Success)
+                            {
+                                var stats = systemImportResult.Statistics;
+                                <MudPaper Elevation="0" Class="pa-2 mt-2" Style="background-color: rgba(255,255,255,0.2);">
+                                    <MudStack Spacing="1">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.caption">專案：</MudText>
+                                            <MudText Typo="Typo.caption">+@stats.ProjectsCreated / ↷@stats.ProjectsSkipped</MudText>
+                                        </MudStack>
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.caption">部門：</MudText>
+                                            <MudText Typo="Typo.caption">+@stats.DepartmentsCreated / ↷@stats.DepartmentsSkipped</MudText>
+                                        </MudStack>
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.caption">工作類型：</MudText>
+                                            <MudText Typo="Typo.caption">+@stats.WorkTypesCreated / ↷@stats.WorkTypesSkipped</MudText>
+                                        </MudStack>
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.caption">處理狀態：</MudText>
+                                            <MudText Typo="Typo.caption">+@stats.ProcessStatusesCreated / ↷@stats.ProcessStatusesSkipped</MudText>
+                                        </MudStack>
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.caption">待辦分類：</MudText>
+                                            <MudText Typo="Typo.caption">+@stats.TodoCategoriesCreated / ↷@stats.TodoCategoriesSkipped</MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                </MudPaper>
+                            }
+
+                            @if (systemImportResult.Errors.Any())
+                            {
+                                <div class="mt-2" style="max-height: 150px; overflow-y: auto;">
+                                    @foreach (var error in systemImportResult.Errors)
+                                    {
+                                        <MudText Typo="Typo.caption">• @error</MudText>
+                                    }
+                                </div>
+                            }
+                        </MudAlert>
+
+                        <MudButton Variant="Variant.Outlined" 
+                                  FullWidth="true"
+                                  OnClick="@(() => ResetSystem())"
+                                  Class="mt-3">
+                            再次匯入
+                        </MudButton>
+                    }
+
+                    <!-- 說明 -->
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-4">
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">注意事項：</MudText>
+                        <div class="py-0">
+                            <MudText Typo="Typo.caption">• 僅匯入系統設定資料</MudText>
+                            <MudText Typo="Typo.caption">• 同名項目會被跳過</MudText>
+                            <MudText Typo="Typo.caption">• 建議先在測試環境驗證</MudText>
+                            <MudText Typo="Typo.caption">• 檔案限制 10 MB</MudText>
+                        </div>
+                    </MudAlert>
                 }
                 else
                 {
-                    <span>🔍 驗證檔案</span>
+                    <MudPaper Elevation="0" Class="pa-6 text-center" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.h3" Class="mb-2">🔒</MudText>
+                        <MudText Typo="Typo.body2" Class="font-weight-bold">需要管理員權限</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                            系統管理資料匯入功能僅限管理員使用
+                        </MudText>
+                    </MudPaper>
                 }
-            </button>
-        }
-
-        <!-- 驗證結果 -->
-        @if (validationResult != null)
-        {
-            var result = validationResult;
-            <div class="mt-4 p-4 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
-                <h3 class="font-semibold @(result.Success ? "text-green-800" : "text-red-800") mb-2">
-                    @(result.Success ? "✓ 驗證通過" : "✗ 驗證失敗")
-                </h3>
-                <p class="text-sm @(result.Success ? "text-green-700" : "text-red-700")">@result.Message</p>
-                
-                @if (result.Warnings.Any())
-                {
-                    <div class="mt-2">
-                        <p class="text-sm font-medium text-yellow-700">警告：</p>
-                        <ul class="text-sm text-yellow-600 list-disc list-inside">
-                            @foreach (var warning in result.Warnings)
-                            {
-                                <li>@warning</li>
-                            }
-                        </ul>
-                    </div>
-                }
-
-                @if (result.Errors.Any())
-                {
-                    <div class="mt-2">
-                        <p class="text-sm font-medium text-red-700">錯誤：</p>
-                        <ul class="text-sm text-red-600 list-disc list-inside">
-                            @foreach (var error in result.Errors)
-                            {
-                                <li>@error</li>
-                            }
-                        </ul>
-                    </div>
-                }
-
-                @if (result.Success)
-                {
-                    <div class="mt-4">
-                        <button @onclick="ImportFile" disabled="@isImporting"
-                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
-                            @if (isImporting)
-                            {
-                                <span class="inline-flex items-center">
-                                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    匯入中...
-                                </span>
-                            }
-                            else
-                            {
-                                <span>📤 確認匯入</span>
-                            }
-                        </button>
-                        <button @onclick="Reset" class="ml-2 bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
-                            取消
-                        </button>
-                    </div>
-                }
-            </div>
-        }
-
-        <!-- 匯入結果 -->
-        @if (importResult != null)
-        {
-            var result = importResult;
-            <div class="mt-4 p-4 rounded-md @(result.Success ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200")">
-                <h3 class="font-semibold @(result.Success ? "text-green-800" : "text-red-800") mb-2">
-                    @(result.Success ? "✓ 匯入成功" : "✗ 匯入失敗")
-                </h3>
-                <p class="text-sm @(result.Success ? "text-green-700" : "text-red-700") mb-3">@result.Message</p>
-
-                @if (result.Success)
-                {
-                    var stats = result.Statistics;
-                    <div class="bg-white rounded p-3 text-sm space-y-2">
-                        <h4 class="font-semibold text-gray-800">匯入統計：</h4>
-                        <div class="grid grid-cols-2 gap-2 text-gray-700">
-                            <div class="bg-gray-50 p-2 rounded">
-                                <span class="font-medium">工作紀錄：</span>
-                                <span class="text-green-600">@stats.WorkLogsImported 筆成功</span>
-                                @if (stats.WorkLogsFailed > 0)
-                                {
-                                    <span class="text-red-600"> / @stats.WorkLogsFailed 筆失敗</span>
-                                }
-                            </div>
-                            <div class="bg-gray-50 p-2 rounded">
-                                <span class="font-medium">待辦事項：</span>
-                                <span class="text-green-600">@stats.TodosImported 筆成功</span>
-                                @if (stats.TodosFailed > 0)
-                                {
-                                    <span class="text-red-600"> / @stats.TodosFailed 筆失敗</span>
-                                }
-                            </div>
-                            <div class="bg-gray-50 p-2 rounded">
-                                <span class="font-medium">專案：</span>
-                                新增 @stats.ProjectsCreated / 跳過 @stats.ProjectsSkipped
-                            </div>
-                            <div class="bg-gray-50 p-2 rounded">
-                                <span class="font-medium">部門：</span>
-                                新增 @stats.DepartmentsCreated / 跳過 @stats.DepartmentsSkipped
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex space-x-2">
-                        <button @onclick="NavigateToHome" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-                            返回首頁
-                        </button>
-                        <button @onclick="Reset" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
-                            再次匯入
-                        </button>
-                    </div>
-                }
-
-                @if (result.Errors.Any())
-                {
-                    <div class="mt-2">
-                        <p class="text-sm font-medium text-red-700">錯誤詳情：</p>
-                        <ul class="text-sm text-red-600 list-disc list-inside max-h-40 overflow-y-auto">
-                            @foreach (var error in result.Errors)
-                            {
-                                <li>@error</li>
-                            }
-                        </ul>
-                    </div>
-                }
-            </div>
-        }
-    </div>
-
-    <!-- 說明 -->
-    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 class="font-semibold text-yellow-800 mb-2">⚠️ 匯入注意事項</h3>
-        <ul class="text-sm text-yellow-700 space-y-1">
-            <li>• 匯入的資料會新增到您的帳號中，不會刪除現有資料</li>
-            <li>• 如果參照資料（專案、部門等）已存在同名項目，將使用現有項目</li>
-            <li>• 匯入過程會在交易中執行，如果發生錯誤會自動回滾</li>
-            <li>• 建議先在測試環境驗證匯入檔案</li>
-            <li>• 大型檔案可能需要較長時間處理，請耐心等待</li>
-        </ul>
-    </div>
-</div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
 
 @code {
-    private IBrowserFile? selectedFile;
-    private byte[]? fileBytes;
-    private bool isValidating = false;
-    private bool isImporting = false;
-    private DataImportResultDto? validationResult;
-    private DataImportResultDto? importResult;
+    // 工作紀錄匯入
+    private IBrowserFile? worklogFile;
+    private byte[]? worklogBytes;
+    private bool isValidatingWorkLog = false;
+    private bool isImportingWorkLog = false;
+    private DataImportResultDto? worklogValidation;
+    private DataImportResultDto? worklogImportResult;
 
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    // 系統資料匯入
+    private IBrowserFile? systemFile;
+    private byte[]? systemBytes;
+    private bool isValidatingSystem = false;
+    private bool isImportingSystem = false;
+    private DataImportResultDto? systemValidation;
+    private DataImportResultDto? systemImportResult;
+
+    // 權限檢查
+    private bool isAdmin = false;
+
+    protected override async Task OnInitializedAsync()
     {
-        selectedFile = e.File;
-        fileBytes = null;
-        validationResult = null;
-        importResult = null;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.IsInRole("Admin");
+    }
 
-        if (selectedFile != null)
+    // 工作紀錄匯入相關方法
+    private async Task HandleWorkLogFileSelected(IBrowserFile? file)
+    {
+        worklogFile = file;
+        worklogBytes = null;
+        worklogValidation = null;
+        worklogImportResult = null;
+
+        if (worklogFile != null)
         {
-            // 限制檔案大小 50MB
-            if (selectedFile.Size > 52428800)
+            if (worklogFile.Size > 52428800) // 50 MB
             {
-                validationResult = new DataImportResultDto
-                {
-                    Success = false,
-                    Errors = new List<string> { "檔案大小不可超過 50 MB" }
-                };
-                selectedFile = null;
+                Snackbar.Add("檔案大小不可超過 50 MB", Severity.Error);
+                worklogFile = null;
                 return;
             }
 
-            // 讀取檔案內容
-            using var stream = selectedFile.OpenReadStream(maxAllowedSize: 52428800);
+            using var stream = worklogFile.OpenReadStream(maxAllowedSize: 52428800);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
-            fileBytes = ms.ToArray();
+            worklogBytes = ms.ToArray();
         }
     }
 
-    private async Task ValidateFile()
+    private async Task ValidateWorkLogFile()
     {
-        if (fileBytes == null) return;
+        if (worklogBytes == null) return;
 
-        isValidating = true;
+        isValidatingWorkLog = true;
         try
         {
-            validationResult = await ExportService.ValidateImportFileAsync(fileBytes);
+            worklogValidation = await ExportService.ValidateWorkLogImportFileAsync(worklogBytes);
         }
         catch (Exception ex)
         {
-            validationResult = new DataImportResultDto
+            worklogValidation = new DataImportResultDto
             {
                 Success = false,
                 Errors = new List<string> { $"驗證失敗：{ex.Message}" }
@@ -258,41 +411,154 @@
         }
         finally
         {
-            isValidating = false;
+            isValidatingWorkLog = false;
         }
     }
 
-    private async Task ImportFile()
+    private async Task ImportWorkLogFile()
     {
-        if (fileBytes == null) return;
+        if (worklogBytes == null) return;
 
-        isImporting = true;
+        // 確認對話框
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "確認匯入",
+            "確定要匯入此備份檔案嗎？資料將會新增到您的帳號中。",
+            yesText: "確認", cancelText: "取消");
+        
+        if (confirmed != true) return;
+
+        isImportingWorkLog = true;
         try
         {
-            importResult = await ExportService.ImportDataAsync(fileBytes);
+            worklogImportResult = await ExportService.ImportWorkLogDataAsync(worklogBytes);
+            if (worklogImportResult?.Success == true)
+            {
+                Snackbar.Add("匯入成功！", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("匯入失敗", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
-            importResult = new DataImportResultDto
+            worklogImportResult = new DataImportResultDto
             {
                 Success = false,
                 Errors = new List<string> { $"匯入失敗：{ex.Message}" }
             };
+            Snackbar.Add($"匯入失敗：{ex.Message}", Severity.Error);
         }
         finally
         {
-            isImporting = false;
+            isImportingWorkLog = false;
         }
     }
 
-    private void Reset()
+    private void ResetWorkLog()
     {
-        selectedFile = null;
-        fileBytes = null;
-        validationResult = null;
-        importResult = null;
+        worklogFile = null;
+        worklogBytes = null;
+        worklogValidation = null;
+        worklogImportResult = null;
     }
 
+    // 系統資料匯入相關方法
+    private async Task HandleSystemFileSelected(IBrowserFile? file)
+    {
+        systemFile = file;
+        systemBytes = null;
+        systemValidation = null;
+        systemImportResult = null;
+
+        if (systemFile != null)
+        {
+            if (systemFile.Size > 10485760) // 10 MB
+            {
+                Snackbar.Add("檔案大小不可超過 10 MB", Severity.Error);
+                systemFile = null;
+                return;
+            }
+
+            using var stream = systemFile.OpenReadStream(maxAllowedSize: 10485760);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            systemBytes = ms.ToArray();
+        }
+    }
+
+    private async Task ValidateSystemFile()
+    {
+        if (systemBytes == null) return;
+
+        isValidatingSystem = true;
+        try
+        {
+            systemValidation = await ExportService.ValidateSystemDataImportFileAsync(systemBytes);
+        }
+        catch (Exception ex)
+        {
+            systemValidation = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"驗證失敗：{ex.Message}" }
+            };
+        }
+        finally
+        {
+            isValidatingSystem = false;
+        }
+    }
+
+    private async Task ImportSystemFile()
+    {
+        if (systemBytes == null) return;
+
+        // 確認對話框
+        bool? confirmed = await DialogService.ShowMessageBox(
+            "確認匯入",
+            "確定要匯入此系統設定檔案嗎？同名項目將會被跳過。",
+            yesText: "確認", cancelText: "取消");
+        
+        if (confirmed != true) return;
+
+        isImportingSystem = true;
+        try
+        {
+            systemImportResult = await ExportService.ImportSystemDataAsync(systemBytes);
+            if (systemImportResult?.Success == true)
+            {
+                Snackbar.Add("匯入成功！", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("匯入失敗", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            systemImportResult = new DataImportResultDto
+            {
+                Success = false,
+                Errors = new List<string> { $"匯入失敗：{ex.Message}" }
+            };
+            Snackbar.Add($"匯入失敗：{ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isImportingSystem = false;
+        }
+    }
+
+    private void ResetSystem()
+    {
+        systemFile = null;
+        systemBytes = null;
+        systemValidation = null;
+        systemImportResult = null;
+    }
+
+    // 共用方法
     private void NavigateToHome()
     {
         Navigation.NavigateTo("/");

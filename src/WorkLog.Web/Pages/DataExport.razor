@@ -2,124 +2,251 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @using WorkLog.Web.Services
+@using System.Security.Claims
 @inject DataExportService ExportService
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
 @attribute [Authorize]
 
-<div class="container mx-auto px-4 py-6 max-w-4xl">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">匯出資料</h1>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudText Typo="Typo.h4" Class="mb-6">資料備份</MudText>
 
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">匯出選項</h2>
+    <MudGrid Spacing="3" Class="mb-6">
+        <!-- 左側：工作紀錄備份 -->
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h3">📋</MudText>
+                    <MudText Typo="Typo.h6">工作紀錄備份</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    匯出您的工作紀錄和待辦事項
+                </MudText>
 
-        <div class="space-y-4">
-            <!-- 日期範圍 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">開始日期（選填）</label>
-                    <input type="date" @bind="startDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                    <p class="text-xs text-gray-500 mt-1">留空表示匯出所有歷史資料</p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">結束日期（選填）</label>
-                    <input type="date" @bind="endDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                    <p class="text-xs text-gray-500 mt-1">留空表示匯出到今天</p>
-                </div>
-            </div>
+                <MudStack Spacing="3">
+                    <!-- 日期範圍 -->
+                    <MudDatePicker @bind-Date="worklogStartDate" 
+                                  Label="開始日期（選填）" 
+                                  Variant="Variant.Outlined"
+                                  Editable="true"
+                                  DateFormat="yyyy/MM/dd" />
+                    
+                    <MudDatePicker @bind-Date="worklogEndDate" 
+                                  Label="結束日期（選填）" 
+                                  Variant="Variant.Outlined"
+                                  Editable="true"
+                                  DateFormat="yyyy/MM/dd" />
 
-            <!-- 包含附件選項 -->
-            <div class="flex items-center">
-                <input type="checkbox" @bind="includeAttachments" id="includeAttachments" class="h-4 w-4 text-blue-600 border-gray-300 rounded" />
-                <label for="includeAttachments" class="ml-2 text-sm text-gray-700">
-                    包含待辦事項附件檔案
-                    <span class="text-xs text-gray-500">（選擇此項會增加匯出檔案大小）</span>
-                </label>
-            </div>
-        </div>
+                    <!-- 包含附件選項 -->
+                    <MudCheckBox @bind-Value="worklogIncludeAttachments" 
+                                Color="Color.Primary">
+                        包含附件檔案
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-1" Style="display: inline;">
+                            （待辦事項的附件會增加檔案大小）
+                        </MudText>
+                    </MudCheckBox>
+                </MudStack>
 
-        <!-- 匯出按鈕 -->
-        <div class="mt-6">
-            <button @onclick="ExportData" disabled="@isExporting" 
-                    class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed">
-                @if (isExporting)
+                <!-- 匯出按鈕 -->
+                <MudButton Variant="Variant.Filled" 
+                          Color="Color.Primary" 
+                          FullWidth="true"
+                          OnClick="@(async () => await ExportWorkLogData())"
+                          Disabled="@isExportingWorkLog"
+                          StartIcon="@Icons.Material.Filled.Download"
+                          Class="mt-6">
+                    @if (isExportingWorkLog)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>匯出中...</span>
+                    }
+                    else
+                    {
+                        <span>匯出工作紀錄</span>
+                    }
+                </MudButton>
+
+                <!-- 說明 -->
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-4">
+                    <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">包含內容：</MudText>
+                    <MudList T="string" Dense="true" Class="py-0">
+                        <MudText Typo="Typo.caption">• 工作紀錄條目</MudText>
+                        <MudText Typo="Typo.caption">• 待辦事項（含子任務、評論）</MudText>
+                        <MudText Typo="Typo.caption">• 附件檔案（若勾選）</MudText>
+                    </MudList>
+                </MudAlert>
+            </MudPaper>
+        </MudItem>
+
+        <!-- 右側：系統管理資料備份 -->
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h3">⚙️</MudText>
+                    <MudText Typo="Typo.h6">系統管理資料備份</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                    匯出系統設定與參照資料
+                </MudText>
+
+                @if (isAdmin)
                 {
-                    <span class="inline-flex items-center">
-                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        匯出中...
-                    </span>
+                    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-4">
+                        <MudText Typo="Typo.caption" Class="font-weight-bold">管理員功能</MudText>
+                        <MudText Typo="Typo.caption">
+                            此功能將匯出所有系統設定資料，包括專案、部門、工作類型、處理狀態和待辦分類。
+                        </MudText>
+                    </MudAlert>
+
+                    <!-- 匯出按鈕 -->
+                    <MudButton Variant="Variant.Filled" 
+                              Color="Color.Secondary" 
+                              FullWidth="true"
+                              OnClick="@(async () => await ExportSystemData())"
+                              Disabled="@isExportingSystem"
+                              StartIcon="@Icons.Material.Filled.Download"
+                              Class="mt-3">
+                        @if (isExportingSystem)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>匯出中...</span>
+                        }
+                        else
+                        {
+                            <span>匯出系統資料</span>
+                        }
+                    </MudButton>
+
+                    <!-- 說明 -->
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-4">
+                        <MudText Typo="Typo.caption" Class="font-weight-bold mb-1">包含內容：</MudText>
+                        <MudList T="string" Dense="true" Class="py-0">
+                            <MudText Typo="Typo.caption">• 專案名稱清單</MudText>
+                            <MudText Typo="Typo.caption">• 業管單位清單</MudText>
+                            <MudText Typo="Typo.caption">• 工作類型清單</MudText>
+                            <MudText Typo="Typo.caption">• 處理狀態清單</MudText>
+                            <MudText Typo="Typo.caption">• 待辦分類清單</MudText>
+                        </MudList>
+                    </MudAlert>
                 }
                 else
                 {
-                    <span>📥 開始匯出</span>
+                    <MudPaper Elevation="0" Class="pa-6 text-center" Style="background-color: var(--mud-palette-background-grey);">
+                        <MudText Typo="Typo.h3" Class="mb-2">🔒</MudText>
+                        <MudText Typo="Typo.body2" Class="font-weight-bold">需要管理員權限</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                            系統管理資料備份功能僅限管理員使用
+                        </MudText>
+                    </MudPaper>
                 }
-            </button>
-        </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 
-        <!-- 訊息顯示 -->
-        @if (!string.IsNullOrEmpty(message))
-        {
-            <div class="mt-4 p-4 rounded-md @(isError ? "bg-red-50 text-red-800" : "bg-green-50 text-green-800")">
-                @message
-            </div>
-        }
-    </div>
-
-    <!-- 說明 -->
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 class="font-semibold text-blue-800 mb-2">💡 匯出說明</h3>
-        <ul class="text-sm text-blue-700 space-y-1">
-            <li>• 匯出的資料包含工作紀錄和待辦事項</li>
-            <li>• 匯出檔案為 ZIP 格式，包含 JSON 資料檔和附件（如果勾選）</li>
-            <li>• 日期範圍僅影響工作紀錄和待辦事項的篩選</li>
-            <li>• 參照資料（專案、部門、工作類型等）會自動包含</li>
-            <li>• 匯出的檔案可用於備份或匯入到其他系統</li>
-        </ul>
-    </div>
-</div>
+    <!-- 全域說明 -->
+    <MudPaper Elevation="1" Class="pa-4">
+        <MudText Typo="Typo.h6" Class="mb-3">💡 備份說明</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.body2" Class="font-weight-bold mb-2">工作紀錄備份</MudText>
+                <MudList T="string" Dense="true" Class="py-0">
+                    <MudText Typo="Typo.caption">• 屬於個人資料備份</MudText>
+                    <MudText Typo="Typo.caption">• 可設定日期範圍篩選</MudText>
+                    <MudText Typo="Typo.caption">• 支援附件匯出</MudText>
+                    <MudText Typo="Typo.caption">• 檔案較大（視附件多寡）</MudText>
+                </MudList>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.body2" Class="font-weight-bold mb-2">系統管理資料備份</MudText>
+                <MudList T="string" Dense="true" Class="py-0">
+                    <MudText Typo="Typo.caption">• 屬於系統設定備份</MudText>
+                    <MudText Typo="Typo.caption">• 需要管理員權限</MudText>
+                    <MudText Typo="Typo.caption">• 不含個人資料</MudText>
+                    <MudText Typo="Typo.caption">• 檔案較小（純文字資料）</MudText>
+                </MudList>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
 
 @code {
-    private DateTime? startDate;
-    private DateTime? endDate;
-    private bool includeAttachments = false;
-    private bool isExporting = false;
-    private string message = string.Empty;
-    private bool isError = false;
+    // 工作紀錄備份
+    private DateTime? worklogStartDate;
+    private DateTime? worklogEndDate;
+    private bool worklogIncludeAttachments = false;
+    private bool isExportingWorkLog = false;
 
-    private async Task ExportData()
+    // 系統資料備份
+    private bool isExportingSystem = false;
+
+    // 權限檢查
+    private bool isAdmin = false;
+
+    protected override async Task OnInitializedAsync()
     {
-        isExporting = true;
-        message = string.Empty;
-        isError = false;
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isAdmin = user.IsInRole("Admin");
+    }
+
+    private async Task ExportWorkLogData()
+    {
+        isExportingWorkLog = true;
 
         try
         {
-            var bytes = await ExportService.ExportDataAsync(startDate, endDate, includeAttachments);
+            var bytes = await ExportService.ExportWorkLogDataAsync(worklogStartDate, worklogEndDate, worklogIncludeAttachments);
 
             if (bytes == null)
             {
-                message = "匯出失敗，請稍後再試";
-                isError = true;
+                Snackbar.Add("匯出失敗，請稍後再試", Severity.Error);
                 return;
             }
 
             // 觸發檔案下載
-            var fileName = $"worklog-export-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
+            var fileName = $"worklog-data-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
             await JS.InvokeVoidAsync("downloadFile", fileName, "application/zip", bytes);
 
-            message = $"匯出成功！檔案已下載：{fileName}";
-            isError = false;
+            Snackbar.Add($"匯出成功！檔案已下載：{fileName}", Severity.Success);
         }
         catch (Exception ex)
         {
-            message = $"匯出失敗：{ex.Message}";
-            isError = true;
+            Snackbar.Add($"匯出失敗：{ex.Message}", Severity.Error);
         }
         finally
         {
-            isExporting = false;
+            isExportingWorkLog = false;
+        }
+    }
+
+    private async Task ExportSystemData()
+    {
+        isExportingSystem = true;
+
+        try
+        {
+            var bytes = await ExportService.ExportSystemDataAsync();
+
+            if (bytes == null)
+            {
+                Snackbar.Add("匯出失敗，請稍後再試", Severity.Error);
+                return;
+            }
+
+            // 觸發檔案下載
+            var fileName = $"system-data-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
+            await JS.InvokeVoidAsync("downloadFile", fileName, "application/zip", bytes);
+
+            Snackbar.Add($"匯出成功！檔案已下載：{fileName}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"匯出失敗：{ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isExportingSystem = false;
         }
     }
 }

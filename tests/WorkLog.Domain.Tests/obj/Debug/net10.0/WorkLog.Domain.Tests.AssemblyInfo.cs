@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WorkLog.Domain.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5fabddc21f2b8c8d324e1e5bc9a37b96c91c8b2e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+28459b29556f00c31b6374b4220551deb6781e62")]
 [assembly: System.Reflection.AssemblyProductAttribute("WorkLog.Domain.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WorkLog.Domain.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

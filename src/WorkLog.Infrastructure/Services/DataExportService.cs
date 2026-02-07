@@ -282,4 +282,126 @@ public class DataExportService : IDataExportService
         memoryStream.Position = 0;
         return memoryStream.ToArray();
     }
+
+    public async Task<WorkLogDataExportDto> ExportWorkLogDataAsync(int userId, DateTime? startDate, DateTime? endDate, bool includeAttachments)
+    {
+        _logger.LogInformation("開始匯出使用者 {UserId} 的工作紀錄資料 (包含附件: {IncludeAttachments})", userId, includeAttachments);
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"找不到使用者 ID: {userId}");
+        }
+
+        var exportData = new WorkLogDataExportDto
+        {
+            ExportedAt = DateTime.UtcNow,
+            Username = user.Username,
+            StartDate = startDate,
+            EndDate = endDate,
+            IncludesAttachments = includeAttachments
+        };
+
+        // 匯出工作紀錄
+        exportData.WorkLogs = await ExportWorkLogsAsync(userId, startDate, endDate);
+
+        // 匯出待辦事項
+        exportData.Todos = await ExportTodosAsync(userId, startDate, endDate, includeAttachments);
+
+        _logger.LogInformation("工作紀錄資料匯出完成: {WorkLogCount} 筆工作紀錄, {TodoCount} 筆待辦事項", 
+            exportData.WorkLogs.Count, exportData.Todos.Count);
+
+        return exportData;
+    }
+
+    public async Task<SystemDataExportDto> ExportSystemDataAsync(int userId)
+    {
+        _logger.LogInformation("開始匯出系統管理資料");
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException($"找不到使用者 ID: {userId}");
+        }
+
+        var exportData = new SystemDataExportDto
+        {
+            ExportedAt = DateTime.UtcNow,
+            Username = user.Username,
+            ReferenceData = await ExportReferenceDataAsync()
+        };
+
+        _logger.LogInformation("系統管理資料匯出完成");
+
+        return exportData;
+    }
+
+    public async Task<byte[]> GenerateWorkLogZipFileAsync(WorkLogDataExportDto exportData, Dictionary<int, byte[]>? attachmentFiles)
+    {
+        _logger.LogInformation("產生工作紀錄資料 ZIP 檔案...");
+
+        using var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            // 加入 data.json
+            var dataJsonEntry = archive.CreateEntry("data.json", CompressionLevel.Optimal);
+            using (var entryStream = dataJsonEntry.Open())
+            {
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+                await JsonSerializer.SerializeAsync(entryStream, exportData, jsonOptions);
+            }
+
+            // 加入附件檔案
+            if (attachmentFiles != null && attachmentFiles.Count > 0)
+            {
+                _logger.LogInformation("加入 {AttachmentCount} 個附件到 ZIP", attachmentFiles.Count);
+                
+                foreach (var todo in exportData.Todos)
+                {
+                    foreach (var attachment in todo.Attachments.Where(a => a.FilePath != null))
+                    {
+                        if (attachmentFiles.TryGetValue(attachment.OriginalId, out var fileData))
+                        {
+                            var attachmentEntry = archive.CreateEntry(attachment.FilePath!, CompressionLevel.Optimal);
+                            using var attachmentStream = attachmentEntry.Open();
+                            await attachmentStream.WriteAsync(fileData);
+                        }
+                    }
+                }
+            }
+        }
+
+        memoryStream.Position = 0;
+        return memoryStream.ToArray();
+    }
+
+    public async Task<byte[]> GenerateSystemDataZipFileAsync(SystemDataExportDto exportData)
+    {
+        _logger.LogInformation("產生系統管理資料 ZIP 檔案...");
+
+        using var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            // 加入 data.json
+            var dataJsonEntry = archive.CreateEntry("data.json", CompressionLevel.Optimal);
+            using (var entryStream = dataJsonEntry.Open())
+            {
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+                await JsonSerializer.SerializeAsync(entryStream, exportData, jsonOptions);
+            }
+        }
+
+        memoryStream.Position = 0;
+        return memoryStream.ToArray();
+    }
 }

@@ -5,6 +5,9 @@ build_property.EnableTrimAnalyzer = false
 build_property.IncludeAllContentForSelfExtract = 
 build_property.VerifyReferenceTrimCompatibility = 
 build_property.VerifyReferenceAotCompatibility = 
+build_property.MudDebugAnalyzer = 
+build_property.MudAllowedAttributePattern = 
+build_property.MudIllegalParameters = 
 build_property.TargetFramework = net10.0
 build_property.TargetFrameworkIdentifier = .NETCoreApp
 build_property.TargetFrameworkVersion = v10.0
@@ -36,12 +39,28 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDYWxlbmRhci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[d:/開發中/worklog/src/WorkLog.Web/Components/ChangePasswordDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDaGFuZ2VQYXNzd29yZERpYWxvZy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[d:/開發中/worklog/src/WorkLog.Web/Components/CreateUserDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDcmVhdGVVc2VyRGlhbG9nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [d:/開發中/worklog/src/WorkLog.Web/Components/TodoDashboard.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xUb2RvRGFzaGJvYXJkLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [d:/開發中/worklog/src/WorkLog.Web/Layout/MainLayout.razor]
 build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XE1haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[d:/開發中/worklog/src/WorkLog.Web/Layout/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XE5hdk1lbnUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[d:/開發中/worklog/src/WorkLog.Web/Layout/UserInfo.razor]
+build_metadata.AdditionalFiles.TargetPath = TGF5b3V0XFVzZXJJbmZvLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [d:/開發中/worklog/src/WorkLog.Web/Pages/Admin/AdminIndex.razor]
@@ -94,6 +113,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [d:/開發中/worklog/src/WorkLog.Web/Shared/RedirectToLogin.razor]
 build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFJlZGlyZWN0VG9Mb2dpbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[d:/開發中/worklog/src/WorkLog.Web/Shared/TodoDetailDialog.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFRvZG9EZXRhaWxEaWFsb2cucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [d:/開發中/worklog/src/WorkLog.Web/_Imports.razor]

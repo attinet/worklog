@@ -1,0 +1,251 @@
+@using WorkLog.Shared.DTOs.Todos
+@using WorkLog.Web.Services
+@inject TodoService TodoService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <DialogContent>
+        @if (loading)
+        {
+            <div class="text-center py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else if (todo == null)
+        {
+            <MudAlert Severity="Severity.Error">無法載入待辦事項</MudAlert>
+        }
+        else
+        {
+            <MudStack Spacing="3">
+                <!-- 標題與狀態 -->
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.h5">@todo.Title</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(todo.Status)">
+                        @GetStatusText(todo.Status)
+                    </MudChip>
+                </div>
+
+                <!-- 優先順序與到期日 -->
+                <MudStack Row="true" Spacing="2">
+                    <MudChip T="string" 
+                            Size="Size.Small" 
+                            Icon="@Icons.Material.Filled.PriorityHigh"
+                            Color="@GetPriorityColor(todo.Priority)" 
+                            Variant="Variant.Text">
+                        優先順序: @GetPriorityText(todo.Priority)
+                    </MudChip>
+                    @if (todo.DueDate.HasValue)
+                    {
+                        <MudChip T="string" 
+                                Size="Size.Small" 
+                                Icon="@Icons.Material.Filled.CalendarToday"
+                                Color="@(todo.IsOverdue ? Color.Error : Color.Default)">
+                            @todo.DueDate.Value.ToString("yyyy/MM/dd")
+                            @if (todo.IsOverdue)
+                            {
+                                <text> (逾期)</text>
+                            }
+                        </MudChip>
+                    }
+                </MudStack>
+
+                <!-- 分類 -->
+                @if (todo.Category != null)
+                {
+                    <MudChip T="string" 
+                            Size="Size.Small" 
+                            Icon="@todo.Category.Icon"
+                            Style="@($"background-color: {todo.Category.ColorCode}20; color: {todo.Category.ColorCode}")">
+                        @todo.Category.Name
+                    </MudChip>
+                }
+
+                <!-- 描述 -->
+                @if (!string.IsNullOrEmpty(todo.Description))
+                {
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">📝 描述</MudText>
+                        <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(0,0,0,0.02)">
+                            <MudText Typo="Typo.body2" Style="white-space: pre-wrap">@todo.Description</MudText>
+                        </MudPaper>
+                    </div>
+                }
+
+                <!-- 子任務 -->
+                @if (todo.SubTasks.Count > 0)
+                {
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                            ✓ 子任務 (@todo.CompletedSubTasks/@todo.TotalSubTasks)
+                        </MudText>
+                        <MudPaper Elevation="0" Class="pa-2">
+                            @foreach (var subTask in todo.SubTasks.OrderBy(s => s.SortOrder))
+                            {
+                                <div class="d-flex align-center mb-1">
+                                    <MudCheckBox Value="@subTask.IsCompleted" 
+                                                ReadOnly="true" 
+                                                Color="Color.Success" 
+                                                Dense="true" />
+                                    <MudText Typo="Typo.body2" 
+                                            Style="@(subTask.IsCompleted ? "text-decoration: line-through; opacity: 0.6" : "")">
+                                        @subTask.Title
+                                    </MudText>
+                                </div>
+                            }
+                        </MudPaper>
+                    </div>
+                }
+
+                <!-- 附件 -->
+                @if (todo.Attachments.Count > 0)
+                {
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                            📎 附件 (@todo.Attachments.Count)
+                        </MudText>
+                        <MudPaper Elevation="0" Class="pa-2">
+                            @foreach (var attachment in todo.Attachments)
+                            {
+                                <MudChip T="string" 
+                                        Size="Size.Small" 
+                                        Icon="@Icons.Material.Filled.AttachFile"
+                                        Class="ma-1">
+                                    @attachment.FileName
+                                </MudChip>
+                            }
+                        </MudPaper>
+                    </div>
+                }
+
+                <!-- 備註 -->
+                @if (todo.Comments.Count > 0)
+                {
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">
+                            💬 備註 (@todo.Comments.Count)
+                        </MudText>
+                        <MudPaper Elevation="0" Class="pa-2" Style="max-height: 200px; overflow-y: auto">
+                            @foreach (var comment in todo.Comments.OrderByDescending(c => c.CreatedAt))
+                            {
+                                <MudPaper Elevation="0" Class="pa-2 mb-2" Style="background: rgba(0,0,0,0.02)">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @comment.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">@comment.Content</MudText>
+                                </MudPaper>
+                            }
+                        </MudPaper>
+                    </div>
+                }
+
+                <!-- 時間資訊 -->
+                <MudDivider />
+                <MudStack Row="true" Spacing="4">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">建立時間</MudText>
+                        <MudText Typo="Typo.body2">@todo.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</MudText>
+                    </div>
+                    @if (todo.UpdatedAt.HasValue)
+                    {
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">更新時間</MudText>
+                            <MudText Typo="Typo.body2">@todo.UpdatedAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</MudText>
+                        </div>
+                    }
+                    @if (todo.CompletedAt.HasValue)
+                    {
+                        <div>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">完成時間</MudText>
+                            <MudText Typo="Typo.body2">@todo.CompletedAt.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</MudText>
+                        </div>
+                    }
+                </MudStack>
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (todo != null)
+        {
+            <MudButton Color="Color.Primary" 
+                      Variant="Variant.Filled"
+                      StartIcon="@Icons.Material.Filled.Edit"
+                      OnClick="@(() => NavigateToEdit())">
+                編輯
+            </MudButton>
+        }
+        <MudButton Color="Color.Default" 
+                  OnClick="@(() => MudDialog.Close())">
+            關閉
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public int TodoId { get; set; }
+
+    private TodoItemResponse? todo;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTodo();
+    }
+
+    private async Task LoadTodo()
+    {
+        loading = true;
+        try
+        {
+            todo = await TodoService.GetTodoByIdAsync(TodoId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"載入失敗: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void NavigateToEdit()
+    {
+        MudDialog.Close();
+        Navigation.NavigateTo($"/todos/edit/{TodoId}");
+    }
+
+    private Color GetPriorityColor(string priority) => priority switch
+    {
+        "High" => Color.Error,
+        "Medium" => Color.Warning,
+        "Low" => Color.Success,
+        _ => Color.Default
+    };
+
+    private string GetPriorityText(string priority) => priority switch
+    {
+        "High" => "高",
+        "Medium" => "中",
+        "Low" => "低",
+        _ => priority
+    };
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Pending" => Color.Default,
+        "InProgress" => Color.Info,
+        "Completed" => Color.Success,
+        _ => Color.Default
+    };
+
+    private string GetStatusText(string status) => status switch
+    {
+        "Pending" => "待處理",
+        "InProgress" => "進行中",
+        "Completed" => "已完成",
+        _ => status
+    };
+}

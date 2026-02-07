@@ -2,107 +2,151 @@
 @page "/admin/departments"
 @page "/admin/work-types"
 @page "/admin/statuses"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@using WorkLog.Shared.DTOs
+@attribute [Authorize(Roles = "Admin")]
 @inject HttpClient Http
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@implements IDisposable
 
 <PageTitle>@PageTitle</PageTitle>
 
-<div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">@PageTitle</h1>
-    <a href="/admin" class="btn-secondary text-sm">← 返回管理</a>
-</div>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-6">
+        <MudText Typo="Typo.h4">@PageTitle</MudText>
+        <MudButton Variant="Variant.Outlined" 
+                  StartIcon="@Icons.Material.Filled.ArrowBack"
+                  Href="/admin">
+            返回管理
+        </MudButton>
+    </MudStack>
 
-@* 新增/編輯表單 *@
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-    <h3 class="font-semibold text-gray-700 mb-3">@(editId.HasValue ? "編輯項目" : "新增項目")</h3>
-    <div class="flex flex-wrap gap-3 items-end">
-        <div class="flex-1 min-w-[200px]">
-            <label class="block text-sm font-medium text-gray-700 mb-1">名稱</label>
-            <input @bind="editName" class="input-field" placeholder="輸入名稱" />
-        </div>
-        <div class="w-24">
-            <label class="block text-sm font-medium text-gray-700 mb-1">排序</label>
-            <input type="number" @bind="editSortOrder" class="input-field" />
-        </div>
-        <div class="flex items-center gap-2">
-            <label class="flex items-center gap-1 text-sm">
-                <input type="checkbox" @bind="editIsActive" class="rounded" />
-                啟用
-            </label>
-        </div>
-        <div class="flex gap-2">
-            <button @onclick="SaveItem" class="btn-primary text-sm">
-                @(editId.HasValue ? "更新" : "新增")
-            </button>
-            @if (editId.HasValue)
-            {
-                <button @onclick="CancelEdit" class="btn-secondary text-sm">取消</button>
-            }
-        </div>
-    </div>
-    @if (!string.IsNullOrEmpty(message))
-    {
-        <p class="text-sm mt-2 @(isError ? "text-red-600" : "text-green-600")">@message</p>
-    }
-</div>
+    <!-- 新增/編輯表單 -->
+    <MudPaper Elevation="2" Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-3">@(editId.HasValue ? "編輯項目" : "新增項目")</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="editName" 
+                             Label="名稱" 
+                             Variant="Variant.Outlined"
+                             Required="true"
+                             HelperText="輸入名稱" />
+            </MudItem>
+            <MudItem xs="12" sm="2">
+                <MudNumericField @bind-Value="editSortOrder" 
+                                Label="排序" 
+                                Variant="Variant.Outlined"
+                                Min="0" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudCheckBox @bind-Value="editIsActive" 
+                            Label="啟用" 
+                            Color="Color.Primary" />
+            </MudItem>
+            <MudItem xs="12" sm="2" Class="d-flex align-center">
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Variant="Variant.Filled" 
+                              Color="Color.Primary"
+                              OnClick="SaveItem"
+                              FullWidth="true">
+                        @(editId.HasValue ? "更新" : "新增")
+                    </MudButton>
+                    @if (editId.HasValue)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                      Color="Color.Default"
+                                      OnClick="CancelEdit" />
+                    }
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
 
-@* 列表 *@
-@if (items == null)
-{
-    <p class="text-gray-500">載入中...</p>
-}
-else
-{
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="th-cell">ID</th>
-                    <th class="th-cell">名稱</th>
-                    <th class="th-cell">排序</th>
-                    <th class="th-cell">狀態</th>
-                    <th class="th-cell">操作</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @foreach (var item in items.OrderBy(i => i.SortOrder))
-                {
-                    <tr class="hover:bg-gray-50">
-                        <td class="td-cell">@item.Id</td>
-                        <td class="td-cell font-medium">@item.Name</td>
-                        <td class="td-cell">@item.SortOrder</td>
-                        <td class="td-cell">
-                            <span class="@(item.IsActive ? "badge-green" : "badge-gray")">
-                                @(item.IsActive ? "啟用" : "停用")
-                            </span>
-                        </td>
-                        <td class="td-cell">
-                            <button @onclick="() => StartEdit(item)" class="text-blue-600 hover:text-blue-800 text-sm mr-2">編輯</button>
-                            <button @onclick="() => DeleteItem(item.Id)" class="text-red-500 hover:text-red-700 text-sm">刪除</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+    <!-- 列表 -->
+    <MudPaper Elevation="2">
+        <MudTable T="LookupItemDto" 
+                 Items="@items" 
+                 Loading="@isLoading"
+                 Hover="true"
+                 Breakpoint="Breakpoint.Sm"
+                 LoadingProgressColor="Color.Info">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>名稱</MudTh>
+                <MudTh>排序</MudTh>
+                <MudTh>狀態</MudTh>
+                <MudTh Style="width: 150px;">操作</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="ID">@context.Id</MudTd>
+                <MudTd DataLabel="名稱">
+                    <MudText Typo="Typo.body2" Class="font-weight-medium">@context.Name</MudText>
+                </MudTd>
+                <MudTd DataLabel="排序">@context.SortOrder</MudTd>
+                <MudTd DataLabel="狀態">
+                    <MudChip T="string" 
+                            Size="Size.Small" 
+                            Color="@(context.IsActive ? Color.Success : Color.Default)">
+                        @(context.IsActive ? "啟用" : "停用")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="操作">
+                    <MudStack Row="true" Spacing="1">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                      Color="Color.Info"
+                                      Size="Size.Small"
+                                      OnClick="@(() => StartEdit(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                      Color="Color.Error"
+                                      Size="Size.Small"
+                                      OnClick="@(() => DeleteItem(context.Id))" />
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">
+                    尚無資料
+                </MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MudContainer>
 
 @code {
-    private List<LookupItemDto>? items;
+    private List<LookupItemDto> items = new();
+    private bool isLoading = true;
     private string editName = "";
     private int editSortOrder = 0;
     private bool editIsActive = true;
     private int? editId;
-    private string? message;
-    private bool isError;
+    private string _currentPath = "";
+    private string _pageTitle = "";
 
-    private string ApiPath => Navigation.Uri.Contains("/projects") ? "projects"
-        : Navigation.Uri.Contains("/departments") ? "departments"
-        : Navigation.Uri.Contains("/work-types") ? "work-types"
-        : "statuses";
+    private string ApiPath => GetApiPath(Navigation.Uri);
 
-    private string PageTitle => ApiPath switch
+    private string GetApiPath(string uri)
+    {
+        if (uri.Contains("/projects")) return "projects";
+        if (uri.Contains("/departments")) return "departments";
+        if (uri.Contains("/work-types")) return "work-types";
+        return "statuses";
+    }
+
+    private string PageTitle
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_pageTitle))
+            {
+                _pageTitle = GetPageTitle();
+            }
+            return _pageTitle;
+        }
+    }
+
+    private string GetPageTitle() => _currentPath switch
     {
         "projects" => "專案名稱維護",
         "departments" => "業管單位維護",
@@ -111,22 +155,61 @@ else
         _ => "維護"
     };
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
+        Navigation.LocationChanged += OnLocationChanged;
+        _currentPath = ApiPath;
+        _pageTitle = GetPageTitle();
         await LoadItems();
+        StateHasChanged(); // 確保初始載入後更新 UI
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // 使用事件參數中的新 URL 來計算路徑
+        var newPath = GetApiPath(e.Location);
+        if (_currentPath != newPath)
+        {
+            _currentPath = newPath;
+            _pageTitle = GetPageTitle();
+            
+            // 使用 InvokeAsync 確保在 UI 執行緒上執行
+            _ = InvokeAsync(async () =>
+            {
+                CancelEdit();
+                items.Clear(); // 清空舊資料
+                isLoading = true;
+                StateHasChanged(); // 先更新 UI 顯示載入狀態
+                await LoadItems();
+                StateHasChanged(); // 載入完成後更新 UI
+            });
+        }
     }
 
     private async Task LoadItems()
     {
-        items = await Http.GetFromJsonAsync<List<LookupItemDto>>($"api/admin/{ApiPath}");
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<LookupItemDto>>($"api/admin/{_currentPath}");
+            items = result?.OrderBy(i => i.SortOrder).ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"載入資料失敗: {ex.Message}", Severity.Error);
+            items = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task SaveItem()
     {
-        message = null;
         if (string.IsNullOrWhiteSpace(editName))
         {
-            message = "名稱不可為空"; isError = true; return;
+            Snackbar.Add("名稱不可為空", Severity.Warning);
+            return;
         }
 
         var request = new LookupItemRequest
@@ -136,22 +219,28 @@ else
             SortOrder = editSortOrder
         };
 
-        HttpResponseMessage response;
-        if (editId.HasValue)
-            response = await Http.PutAsJsonAsync($"api/admin/{ApiPath}/{editId.Value}", request);
-        else
-            response = await Http.PostAsJsonAsync($"api/admin/{ApiPath}", request);
+        try
+        {
+            HttpResponseMessage response;
+            if (editId.HasValue)
+                response = await Http.PutAsJsonAsync($"api/admin/{_currentPath}/{editId.Value}", request);
+            else
+                response = await Http.PostAsJsonAsync($"api/admin/{_currentPath}", request);
 
-        if (response.IsSuccessStatusCode)
-        {
-            message = editId.HasValue ? "更新成功" : "新增成功";
-            isError = false;
-            CancelEdit();
-            await LoadItems();
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(editId.HasValue ? "更新成功" : "新增成功", Severity.Success);
+                CancelEdit();
+                await LoadItems();
+            }
+            else
+            {
+                Snackbar.Add("操作失敗", Severity.Error);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            message = "操作失敗"; isError = true;
+            Snackbar.Add($"操作失敗: {ex.Message}", Severity.Error);
         }
     }
 
@@ -161,7 +250,6 @@ else
         editName = item.Name;
         editSortOrder = item.SortOrder;
         editIsActive = item.IsActive;
-        message = null;
     }
 
     private void CancelEdit()
@@ -174,8 +262,34 @@ else
 
     private async Task DeleteItem(int id)
     {
-        var response = await Http.DeleteAsync($"api/admin/{ApiPath}/{id}");
-        if (response.IsSuccessStatusCode)
-            await LoadItems();
+        bool? result = await DialogService.ShowMessageBox(
+            "確認刪除",
+            "確定要刪除此項目嗎？",
+            yesText: "確定", cancelText: "取消");
+        
+        if (result != true) return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/admin/{_currentPath}/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("刪除成功", Severity.Success);
+                await LoadItems();
+            }
+            else
+            {
+                Snackbar.Add("刪除失敗", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"刪除失敗: {ex.Message}", Severity.Error);
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }

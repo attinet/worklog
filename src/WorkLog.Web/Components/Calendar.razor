@@ -1,37 +1,55 @@
 @* 月份標題與切換按鈕 *@
-<div class="flex justify-between items-center mb-4">
-    <button @onclick="PreviousMonth" class="btn-secondary">◀ 上個月</button>
-    <h2 class="text-xl font-bold text-gray-800">@currentMonth.ToString("yyyy年 M月")</h2>
-    <button @onclick="NextMonth" class="btn-secondary">下個月 ▶</button>
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" 
+                   OnClick="PreviousMonth" 
+                   Color="Color.Primary" 
+                   Size="Size.Small" />
+    <MudText Typo="Typo.h6">@currentMonth.ToString("yyyy年 M月")</MudText>
+    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" 
+                   OnClick="NextMonth" 
+                   Color="Color.Primary" 
+                   Size="Size.Small" />
 </div>
 
 @* 星期標題 *@
-<div class="grid grid-cols-7 gap-1 mb-2">
+<MudGrid Spacing="1" Class="mb-2">
     @foreach (var day in new[] { "日", "一", "二", "三", "四", "五", "六" })
     {
-        <div class="text-center font-semibold text-gray-600 py-2">@day</div>
+        <MudItem xs="12/7" Class="d-flex justify-center align-center pa-2">
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">@day</MudText>
+        </MudItem>
     }
-</div>
+</MudGrid>
 
 @* 日期網格 *@
-<div class="grid grid-cols-7 gap-1">
+<MudGrid Spacing="1">
     @foreach (var date in GetCalendarDates())
     {
-        <div class="@GetDateClass(date)" @onclick="() => SelectDate(date)">
-            <div class="text-sm font-medium">@date.Day</div>
-            
-            @* 顯示工作紀錄數量和工時 *@
-            @if (WorkLogsByDate.ContainsKey(date))
-            {
-                var logs = WorkLogsByDate[date];
-                var totalHours = logs.Sum(l => l.WorkHours);
-                
-                <div class="calendar-log-count">@logs.Count</div>
-                <div class="work-hours-badge">@totalHours.ToString("0.#")h</div>
-            }
-        </div>
+        <MudItem xs="12/7" Class="d-flex justify-center">
+            <MudPaper Class="@GetDateClass(date)" 
+                     @onclick="() => SelectDate(date)" 
+                     Style="@($"width: 100%; min-height: 80px; cursor: pointer; {GetDateStyle(date)}")">
+                <div class="d-flex flex-column align-center pa-2">
+                    <MudText Typo="Typo.body2">@date.Day</MudText>
+                    
+                    @* 顯示工作紀錄數量和工時 *@
+                    @if (WorkLogsByDate.ContainsKey(date))
+                    {
+                        var logs = WorkLogsByDate[date];
+                        var totalHours = logs.Sum(l => l.WorkHours);
+                        
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="mt-1" Style="height: 20px; font-size: 0.7rem;">
+                            @logs.Count
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Style="height: 18px; font-size: 0.65rem;">
+                            @totalHours.ToString("0.#")h
+                        </MudChip>
+                    }
+                </div>
+            </MudPaper>
+        </MudItem>
     }
-</div>
+</MudGrid>
 
 @code {
     [Parameter]
@@ -92,33 +110,54 @@
 
     private string GetDateClass(DateOnly date)
     {
-        var classes = new List<string> { "calendar-day" };
+        var classes = new List<string>();
+        
+        var isCurrentMonth = date.Month == currentMonth.Month;
+        var isToday = date == today;
+        var isSelected = date == SelectedDate;
+        var hasLogs = WorkLogsByDate.ContainsKey(date);
 
-        // 是否為當前月份
-        if (date.Month != currentMonth.Month)
+        // 不是當月的日期變淡
+        if (!isCurrentMonth)
         {
-            classes.Add("calendar-day-disabled");
-        }
-
-        // 是否為今天
-        if (date == today)
-        {
-            classes.Add("calendar-day-today");
-        }
-
-        // 是否被選中
-        if (date == SelectedDate)
-        {
-            classes.Add("calendar-day-selected");
-        }
-
-        // 是否有工作紀錄
-        if (WorkLogsByDate.ContainsKey(date))
-        {
-            classes.Add("calendar-day-has-logs");
+            classes.Add("mud-text-disabled");
         }
 
         return string.Join(" ", classes);
+    }
+
+    private string GetDateStyle(DateOnly date)
+    {
+        var styles = new List<string>();
+        
+        var isCurrentMonth = date.Month == currentMonth.Month;
+        var isToday = date == today;
+        var isSelected = date == SelectedDate;
+        var hasLogs = WorkLogsByDate.ContainsKey(date);
+
+        // 背景顏色
+        if (isSelected)
+        {
+            styles.Add("background-color: var(--mud-palette-primary-lighten)");
+            styles.Add("border: 2px solid var(--mud-palette-primary)");
+        }
+        else if (isToday)
+        {
+            styles.Add("background-color: var(--mud-palette-warning-lighten)");
+            styles.Add("border: 1px solid var(--mud-palette-warning)");
+        }
+        else if (hasLogs)
+        {
+            styles.Add("border-left: 3px solid var(--mud-palette-info)");
+        }
+        
+        if (!isCurrentMonth)
+        {
+            styles.Add("opacity: 0.5");
+            styles.Add("cursor: default");
+        }
+
+        return string.Join("; ", styles);
     }
 
     private async Task SelectDate(DateOnly date)

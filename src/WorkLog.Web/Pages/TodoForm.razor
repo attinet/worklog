@@ -5,147 +5,244 @@
 @using WorkLog.Web.Services
 @inject TodoService TodoService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 @attribute [Authorize]
 
-<div class="container mx-auto px-4 py-6 max-w-4xl">
-    <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-800">@(IsEditMode ? "編輯待辦事項" : "新增待辦事項")</h1>
-    </div>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+    <MudPaper Elevation="0" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                      Color="Color.Default" 
+                      OnClick="@(() => Cancel())" />
+        <MudText Typo="Typo.h4" Inline="true" Class="ml-2">
+            @(IsEditMode ? "編輯待辦事項" : "新增待辦事項")
+        </MudText>
+    </MudPaper>
 
     @if (loading)
     {
-        <div class="text-center py-12">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="mt-4 text-gray-600">載入中...</p>
-        </div>
+        <MudPaper Elevation="2" Class="pa-8 text-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-2">載入中...</MudText>
+        </MudPaper>
     }
     else
     {
-        <EditForm Model="@model" OnValidSubmit="HandleSubmit" class="bg-white rounded-lg shadow-sm p-6">
+        <EditForm Model="@(IsEditMode ? (object)editModel : model)" OnValidSubmit="HandleSubmit">
             <DataAnnotationsValidator />
+            
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudGrid>
+                    <!--標題 -->
+                    <MudItem xs="12">
+                        @if (IsEditMode)
+                        {
+                            <MudTextField @bind-Value="editModel.Title" 
+                                         Label="標題" 
+                                         Variant="Variant.Outlined"
+                                         Required="true"
+                                         Placeholder="輸入待辦事項標題" />
+                        }
+                        else
+                        {
+                            <MudTextField @bind-Value="model.Title" 
+                                         Label="標題" 
+                                         Variant="Variant.Outlined"
+                                         Required="true"
+                                         Placeholder="輸入待辦事項標題" />
+                        }
+                    </MudItem>
 
-            <!-- 標題 -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">標題 *</label>
-                <InputText @bind-Value="model.Title" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="輸入待辦事項標題" />
-                <ValidationMessage For="@(() => model.Title)" class="text-red-600 text-sm mt-1" />
-            </div>
+                    <!-- 描述 -->
+                    <MudItem xs="12">
+                        @if (IsEditMode)
+                        {
+                            <MudTextField @bind-Value="editModel.Description" 
+                                         Label="描述" 
+                                         Variant="Variant.Outlined"
+                                         Lines="4"
+                                         Placeholder="詳細描述..." />
+                        }
+                        else
+                        {
+                            <MudTextField @bind-Value="model.Description" 
+                                         Label="描述" 
+                                         Variant="Variant.Outlined"
+                                         Lines="4"
+                                         Placeholder="詳細描述..." />
+                        }
+                    </MudItem>
+                    <!-- 截止日期 -->
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudDatePicker @bind-Date="@dueDate" 
+                                      Label="截止日期" 
+                                      Variant="Variant.Outlined"
+                                      Editable="true"
+                                      DateFormat="yyyy/MM/dd" />
+                    </MudItem>
 
-            <!-- 描述 -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">描述</label>
-                <InputTextArea @bind-Value="model.Description" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="4" placeholder="詳細描述..." />
-                <ValidationMessage For="@(() => model.Description)" class="text-red-600 text-sm mt-1" />
-            </div>
+                    <!-- 優先順序 -->
+                    <MudItem xs="12" sm="6" md="4">
+                        @if (IsEditMode)
+                        {
+                            <MudSelect T="string" 
+                                      @bind-Value="editModel.Priority" 
+                                      Label="優先順序" 
+                                      Variant="Variant.Outlined"
+                                      Required="true">
+                                <MudSelectItem T="string" Value="@("Low")">低</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Medium")">中</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("High")">高</MudSelectItem>
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudSelect T="string" 
+                                      @bind-Value="model.Priority" 
+                                      Label="優先順序" 
+                                      Variant="Variant.Outlined"
+                                      Required="true">
+                                <MudSelectItem T="string" Value="@("Low")">低</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Medium")">中</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("High")">高</MudSelectItem>
+                            </MudSelect>
+                        }
+                    </MudItem>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <!-- 截止日期 -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">截止日期</label>
-                    <input type="datetime-local" @bind="model.DueDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" />
-                </div>
+                    <!-- 狀態 (僅編輯模式) -->
+                    @if (IsEditMode)
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudSelect T="string" 
+                                      @bind-Value="editModel.Status" 
+                                      Label="狀態" 
+                                      Variant="Variant.Outlined"
+                                      Required="true">
+                                <MudSelectItem T="string" Value="@("Pending")">待處理</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("InProgress")">進行中</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Completed")">已完成</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                    }
 
-                <!-- 優先順序 -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">優先順序 *</label>
-                    <select @bind="model.Priority" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="Low">低</option>
-                        <option value="Medium">中</option>
-                        <option value="High">高</option>
-                    </select>
-                </div>
+                    <!-- 分類 -->
+                    <MudItem xs="12" sm="6" md="@(IsEditMode ? 12 : 4)">
+                        @if (IsEditMode)
+                        {
+                            <MudSelect T="int?" 
+                                      @bind-Value="editModel.CategoryId" 
+                                      Label="分類" 
+                                      Variant="Variant.Outlined"
+                                      Clearable="true">
+                                @foreach (var category in categories)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)category.Id)">@category.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudSelect T="int?" 
+                                      @bind-Value="model.CategoryId" 
+                                      Label="分類" 
+                                      Variant="Variant.Outlined"
+                                      Clearable="true">
+                                @foreach (var category in categories)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)category.Id)">@category.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    </MudItem>
 
-                <!-- 狀態 (僅編輯模式) -->
-                @if (IsEditMode)
+                    <!-- 子任務 (僅新增模式) -->
+                    @if (!IsEditMode)
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">子任務</MudText>
+                            @foreach (var (subTask, index) in model.SubTasks.Select((st, i) => (st, i)))
+                            {
+                                <div class="d-flex gap-2 mb-2">
+                                    <MudTextField @bind-Value="subTask.Title" 
+                                                 Variant="Variant.Outlined" 
+                                                 Margin="Margin.Dense"
+                                                 Placeholder="子任務標題" 
+                                                 Class="flex-grow-1" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                                  Color="Color.Error" 
+                                                  OnClick="@(() => RemoveSubTask(index))" />
+                                </div>
+                            }
+                            <MudButton Variant="Variant.Text" 
+                                      Color="Color.Primary" 
+                                      StartIcon="@Icons.Material.Filled.Add"
+                                      OnClick="@(() => AddSubTask())">
+                                新增子任務
+                            </MudButton>
+                        </MudItem>
+                    }
+                </MudGrid>
+
+                @if (errorMessage != null)
                 {
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">狀態 *</label>
-                        <select @bind="editModel.Status" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                            <option value="Pending">待處理</option>
-                            <option value="InProgress">進行中</option>
-                            <option value="Completed">已完成</option>
-                        </select>
-                    </div>
+                    <MudAlert Severity="Severity.Error" Class="mt-4">@errorMessage</MudAlert>
                 }
 
-                <!-- 分類 -->
-                <div class="@(IsEditMode ? "col-span-1" : "col-span-1")">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">分類</label>
-                    <select @bind="model.CategoryId" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="">無分類</option>
-                        @foreach (var category in categories)
-                        {
-                            <option value="@category.Id">@category.Name</option>
-                        }
-                    </select>
-                </div>
-            </div>
-
-            <!-- 子任務 -->
-            @if (!IsEditMode)
-            {
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">子任務</label>
-                    @foreach (var (subTask, index) in model.SubTasks.Select((st, i) => (st, i)))
-                    {
-                        <div class="flex gap-2 mb-2">
-                            <InputText @bind-Value="subTask.Title" class="flex-1 px-3 py-2 border border-gray-300 rounded-md" placeholder="子任務標題" />
-                            <button type="button" @onclick="() => RemoveSubTask(index)" class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-md">
-                                刪除
-                            </button>
-                        </div>
-                    }
-                    <button type="button" @onclick="AddSubTask" class="text-blue-600 hover:underline text-sm">
-                        ＋ 新增子任務
-                    </button>
-                </div>
-            }
-
-            @if (errorMessage != null)
-            {
-                <div class="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-                    @errorMessage
-                </div>
-            }
-
-            <!-- 按鈕 -->
-            <div class="flex justify-end gap-3">
-                <button type="button" @onclick="Cancel" class="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                    取消
-                </button>
-                <button type="submit" disabled="@submitting" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
-                    @(submitting ? "儲存中..." : "儲存")
-                </button>
-            </div>
+                <!-- 按鈕 -->
+                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                    <MudButton Variant="Variant.Outlined" 
+                              OnClick="@(() => Cancel())">
+                        取消
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" 
+                              Color="Color.Primary" 
+                              ButtonType="ButtonType.Submit"
+                              Disabled="@submitting"
+                              StartIcon="@Icons.Material.Filled.Save">
+                        @(submitting ? "儲存中..." : "儲存")
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
         </EditForm>
 
         <!-- 編輯模式下的子任務管理 -->
         @if (IsEditMode && existingTodo != null)
         {
-            <div class="bg-white rounded-lg shadow-sm p-6 mt-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">子任務管理</h3>
+            <MudPaper Elevation="2" Class="pa-4 mt-4">
+                <MudText Typo="Typo.h6" Class="mb-4">子任務管理</MudText>
                 
                 @foreach (var subTask in existingTodo.SubTasks.OrderBy(st => st.SortOrder))
                 {
-                    <div class="flex items-center gap-2 mb-2 p-2 border border-gray-200 rounded">
-                        <input type="checkbox" checked="@subTask.IsCompleted" @onchange="e => ToggleSubTask(subTask.Id, (bool)e.Value!)" class="h-5 w-5" />
-                        <span class="flex-1 @(subTask.IsCompleted ? "line-through text-gray-500" : "")">@subTask.Title</span>
-                        <button type="button" @onclick="() => DeleteSubTask(subTask.Id)" class="text-red-600 hover:text-red-800 text-sm">
-                            刪除
-                        </button>
+                    <div class="d-flex align-center gap-2 mb-2 pa-2" style="border: 1px solid #e0e0e0; border-radius: 4px;">
+                        <MudCheckBox T="bool" 
+                                    Value="@subTask.IsCompleted" 
+                                    ValueChanged="@(async (bool val) => await ToggleSubTask(subTask.Id, val))"
+                                    Color="Color.Primary" />
+                        <MudText Typo="Typo.body1" Class="flex-grow-1" Style="@(subTask.IsCompleted ? "text-decoration: line-through; color: #9e9e9e;" : "")">
+                            @subTask.Title
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                      Color="Color.Error" 
+                                      Size="Size.Small"
+                                      OnClick="@(async () => await DeleteSubTask(subTask.Id))" />
                     </div>
                 }
 
-                <div class="flex gap-2 mt-4">
-                    <input type="text" @bind="newSubTaskTitle" @bind:after="@(() => newSubTaskTitle = newSubTaskTitle?.Trim())" class="flex-1 px-3 py-2 border border-gray-300 rounded-md" placeholder="新子任務標題" />
-                    <button type="button" @onclick="AddSubTaskToExisting" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                <MudStack Row="true" Class="mt-4">
+                    <MudTextField @bind-Value="newSubTaskTitle" 
+                                 Variant="Variant.Outlined" 
+                                 Placeholder="新子任務標題"
+                                 Class="flex-grow-1" />
+                    <MudButton Variant="Variant.Filled" 
+                              Color="Color.Primary" 
+                              OnClick="@(async () => await AddSubTaskToExisting())"
+                              StartIcon="@Icons.Material.Filled.Add">
                         新增
-                    </button>
-                </div>
-            </div>
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
         }
     }
-</div>
+</MudContainer>
 
 @code {
     [Parameter] public int? Id { get; set; }
@@ -159,6 +256,7 @@
     private bool submitting = false;
     private string? errorMessage;
     private string? newSubTaskTitle;
+    private DateTime? dueDate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -193,10 +291,7 @@
             editModel.Status = existingTodo.Status;
             editModel.CategoryId = existingTodo.Category?.Id;
             
-            model.Title = existingTodo.Title;
-            model.DueDate = existingTodo.DueDate;
-            model.Priority = existingTodo.Priority;
-            model.CategoryId = existingTodo.Category?.Id;
+            dueDate = existingTodo.DueDate;
         }
     }
 
@@ -207,16 +302,28 @@
 
         try
         {
+            // 同步日期
+            if (IsEditMode)
+            {
+                editModel.DueDate = dueDate;
+            }
+            else
+            {
+                model.DueDate = dueDate;
+            }
+
             if (IsEditMode && Id.HasValue)
             {
                 var success = await TodoService.UpdateTodoAsync(Id.Value, editModel);
                 if (success)
                 {
+                    Snackbar.Add("更新成功", Severity.Success);
                     Navigation.NavigateTo("/todos");
                 }
                 else
                 {
                     errorMessage = "更新失敗，請稍後再試";
+                    Snackbar.Add(errorMessage, Severity.Error);
                 }
             }
             else
@@ -230,17 +337,20 @@
                 var result = await TodoService.CreateTodoAsync(model);
                 if (result != null)
                 {
+                    Snackbar.Add("建立成功", Severity.Success);
                     Navigation.NavigateTo("/todos");
                 }
                 else
                 {
                     errorMessage = "建立失敗，請稍後再試";
+                    Snackbar.Add(errorMessage, Severity.Error);
                 }
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"發生錯誤: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
         }
         finally
         {
@@ -271,8 +381,13 @@
         var result = await TodoService.AddSubTaskAsync(Id.Value, request);
         if (result != null)
         {
+            Snackbar.Add("子任務新增成功", Severity.Success);
             await LoadTodo(Id.Value);
             newSubTaskTitle = null;
+        }
+        else
+        {
+            Snackbar.Add("子任務新增失敗", Severity.Error);
         }
     }
 
@@ -290,16 +405,31 @@
             SortOrder = subTask.SortOrder
         };
 
-        await TodoService.UpdateSubTaskAsync(Id.Value, subTaskId, request);
-        await LoadTodo(Id.Value);
+        var success = await TodoService.UpdateSubTaskAsync(Id.Value, subTaskId, request);
+        if (success)
+        {
+            await LoadTodo(Id.Value);
+        }
+        else
+        {
+            Snackbar.Add("更新失敗", Severity.Error);
+        }
     }
 
     private async Task DeleteSubTask(int subTaskId)
     {
         if (!Id.HasValue) return;
 
-        await TodoService.DeleteSubTaskAsync(Id.Value, subTaskId);
-        await LoadTodo(Id.Value);
+        var success = await TodoService.DeleteSubTaskAsync(Id.Value, subTaskId);
+        if (success)
+        {
+            Snackbar.Add("子任務已刪除", Severity.Success);
+            await LoadTodo(Id.Value);
+        }
+        else
+        {
+            Snackbar.Add("刪除失敗", Severity.Error);
+        }
     }
 
     private void Cancel() => Navigation.NavigateTo("/todos");

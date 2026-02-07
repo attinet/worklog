@@ -2,64 +2,82 @@
 @using WorkLog.Web.Services
 @inject TodoService TodoService
 @inject NavigationManager Navigation
+@inject IDialogService DialogService
 
-<div class="bg-white rounded-lg shadow-sm p-6">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-gray-800">我的待辦事項</h2>
-        <a href="/todos" class="text-blue-600 hover:text-blue-800 text-sm">查看全部 →</a>
+<MudPaper Elevation="2" Class="pa-4">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h5">我的待辦事項</MudText>
+        <MudButton Variant="Variant.Text" 
+                  Color="Color.Primary" 
+                  EndIcon="@Icons.Material.Filled.ArrowForward"
+                  Href="/todos">
+            查看全部
+        </MudButton>
     </div>
 
     @if (loading)
     {
         <div class="text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
         </div>
     }
     else if (dashboard == null)
     {
-        <div class="text-center py-8 text-gray-500">
-            無法載入待辦事項
-        </div>
+        <MudAlert Severity="Severity.Warning">無法載入待辦事項</MudAlert>
     }
     else
     {
         <!-- 統計摘要 -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div class="text-center p-3 bg-gray-50 rounded">
-                <div class="text-2xl font-bold text-gray-800">@dashboard.PendingCount</div>
-                <div class="text-xs text-gray-600">待處理</div>
-            </div>
-            <div class="text-center p-3 bg-blue-50 rounded">
-                <div class="text-2xl font-bold text-blue-600">@dashboard.InProgressCount</div>
-                <div class="text-xs text-gray-600">進行中</div>
-            </div>
-            <div class="text-center p-3 bg-yellow-50 rounded">
-                <div class="text-2xl font-bold text-yellow-600">@dashboard.DueTodayCount</div>
-                <div class="text-xs text-gray-600">今日到期</div>
-            </div>
-            <div class="text-center p-3 bg-red-50 rounded">
-                <div class="text-2xl font-bold text-red-600">@dashboard.OverdueCount</div>
-                <div class="text-xs text-gray-600">逾期</div>
-            </div>
-        </div>
+        <MudGrid Class="mb-4">
+            <MudItem xs="6" md="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center" Style="background: rgba(0,0,0,0.03)">
+                    <MudText Typo="Typo.h4">@dashboard.PendingCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">待處理</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center" Style="background: rgba(33, 150, 243, 0.1)">
+                    <MudText Typo="Typo.h4" Color="Color.Info">@dashboard.InProgressCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">進行中</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center" Style="background: rgba(255, 152, 0, 0.1)">
+                    <MudText Typo="Typo.h4" Color="Color.Warning">@dashboard.DueTodayCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">今日到期</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudPaper Elevation="0" Class="pa-3 text-center" Style="background: rgba(244, 67, 54, 0.1)">
+                    <MudText Typo="Typo.h4" Color="Color.Error">@dashboard.OverdueCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">逾期</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
 
         <!-- 今日到期 -->
         @if (dashboard.DueTodayItems.Count > 0)
         {
             <div class="mb-4">
-                <h3 class="text-sm font-semibold text-gray-700 mb-2">📅 今日到期</h3>
-                @foreach (var todo in dashboard.DueTodayItems)
-                {
-                    <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer" @onclick="() => NavigateToTodo(todo.Id)">
-                        <div class="flex-1">
-                            <div class="font-medium text-gray-800">@todo.Title</div>
-                            <div class="text-xs text-gray-600">
-                                <span class="@GetPriorityClass(todo.Priority)">@GetPriorityText(todo.Priority)</span>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">📅 今日到期</MudText>
+                <MudPaper Elevation="0" Class="mud-list">
+                    @foreach (var todo in dashboard.DueTodayItems)
+                    {
+                        <MudListItem T="string" OnClick="@(() => NavigateToTodo(todo.Id))" Class="mud-list-item-clickable">
+                            <div class="d-flex justify-space-between align-center">
+                                <div style="flex: 1">
+                                    <MudText Typo="Typo.body2">@todo.Title</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(todo.Priority)" Variant="Variant.Text">
+                                        @GetPriorityText(todo.Priority)
+                                    </MudChip>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(todo.Status)">
+                                    @GetStatusText(todo.Status)
+                                </MudChip>
                             </div>
-                        </div>
-                        <span class="@GetStatusClass(todo.Status)">@GetStatusText(todo.Status)</span>
-                    </div>
-                }
+                        </MudListItem>
+                    }
+                </MudPaper>
             </div>
         }
 
@@ -67,30 +85,37 @@
         @if (dashboard.OverdueItems.Count > 0)
         {
             <div>
-                <h3 class="text-sm font-semibold text-red-700 mb-2">⚠️ 逾期待辦</h3>
-                @foreach (var todo in dashboard.OverdueItems)
-                {
-                    <div class="flex items-center justify-between p-2 hover:bg-gray-50 rounded border-l-2 border-red-500 cursor-pointer" @onclick="() => NavigateToTodo(todo.Id)">
-                        <div class="flex-1">
-                            <div class="font-medium text-gray-800">@todo.Title</div>
-                            <div class="text-xs text-red-600">
-                                逾期 @(DateTime.Now - todo.DueDate!.Value).Days 天
+                <MudText Typo="Typo.subtitle2" Color="Color.Error" Class="mb-2">⚠️ 逾期待辦</MudText>
+                <MudPaper Elevation="0" Class="mud-list">
+                    @foreach (var todo in dashboard.OverdueItems)
+                    {
+                        <MudListItem T="string" OnClick="@(() => NavigateToTodo(todo.Id))" Style="border-left: 3px solid var(--mud-palette-error)" Class="mud-list-item-clickable">
+                            <div class="d-flex justify-space-between align-center">
+                                <div style="flex: 1">
+                                    <MudText Typo="Typo.body2">@todo.Title</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Error">
+                                        逾期 @(DateTime.Now - todo.DueDate!.Value).Days 天
+                                    </MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(todo.Status)">
+                                    @GetStatusText(todo.Status)
+                                </MudChip>
                             </div>
-                        </div>
-                        <span class="@GetStatusClass(todo.Status)">@GetStatusText(todo.Status)</span>
-                    </div>
-                }
+                        </MudListItem>
+                    }
+                </MudPaper>
             </div>
         }
 
         @if (dashboard.DueTodayItems.Count == 0 && dashboard.OverdueItems.Count == 0)
         {
-            <div class="text-center py-8 text-gray-500">
-                <p>✅ 目前沒有緊急待辦事項</p>
-            </div>
+            <MudPaper Elevation="0" Class="pa-8 text-center" Style="background: rgba(76, 175, 80, 0.05)">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" Class="mb-2" />
+                <MudText Typo="Typo.body1" Color="Color.Success">✅ 目前沒有緊急待辦事項</MudText>
+            </MudPaper>
         }
     }
-</div>
+</MudPaper>
 
 @code {
     private TodoDashboardResponse? dashboard;
@@ -108,14 +133,32 @@
         loading = false;
     }
 
-    private void NavigateToTodo(int id) => Navigation.NavigateTo($"/todos/edit/{id}");
-
-    private string GetPriorityClass(string priority) => priority switch
+    private async Task NavigateToTodo(int id)
     {
-        "High" => "px-2 py-0.5 rounded bg-red-100 text-red-800",
-        "Medium" => "px-2 py-0.5 rounded bg-yellow-100 text-yellow-800",
-        "Low" => "px-2 py-0.5 rounded bg-green-100 text-green-800",
-        _ => "px-2 py-0.5 rounded bg-gray-100 text-gray-800"
+        var parameters = new DialogParameters<TodoDetailDialog>
+        {
+            { x => x.TodoId, id }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<TodoDetailDialog>("待辦事項詳情", parameters, options);
+        
+        // 關閉對話框後重新載入儀表板以更新狀態
+        await LoadDashboard();
+    }
+
+    private Color GetPriorityColor(string priority) => priority switch
+    {
+        "High" => Color.Error,
+        "Medium" => Color.Warning,
+        "Low" => Color.Success,
+        _ => Color.Default
     };
 
     private string GetPriorityText(string priority) => priority switch
@@ -126,12 +169,12 @@
         _ => priority
     };
 
-    private string GetStatusClass(string status) => status switch
+    private Color GetStatusColor(string status) => status switch
     {
-        "Pending" => "text-xs px-2 py-1 rounded bg-gray-100 text-gray-800",
-        "InProgress" => "text-xs px-2 py-1 rounded bg-blue-100 text-blue-800",
-        "Completed" => "text-xs px-2 py-1 rounded bg-green-100 text-green-800",
-        _ => "text-xs px-2 py-1 rounded bg-gray-100 text-gray-800"
+        "Pending" => Color.Default,
+        "InProgress" => Color.Info,
+        "Completed" => Color.Success,
+        _ => Color.Default
     };
 
     private string GetStatusText(string status) => status switch

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Blazored.LocalStorage;
+using MudBlazor.Services;
 using WorkLog.Web;
 using WorkLog.Web.Services;
 
@@ -44,5 +45,18 @@ builder.Services.AddScoped(sp =>
 // 註冊服務
 builder.Services.AddScoped<TodoService>();
 builder.Services.AddScoped<DataExportService>();
+builder.Services.AddScoped<ThemeService>();
+
+// 註冊 MudBlazor
+builder.Services.AddMudServices(config =>
+{
+    config.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
+    config.SnackbarConfiguration.PreventDuplicates = false;
+    config.SnackbarConfiguration.NewestOnTop = true;
+    config.SnackbarConfiguration.ShowCloseIcon = true;
+    config.SnackbarConfiguration.VisibleStateDuration = 4000;
+    config.SnackbarConfiguration.HideTransitionDuration = 300;
+    config.SnackbarConfiguration.ShowTransitionDuration = 300;
+});
 
 await builder.Build().RunAsync();

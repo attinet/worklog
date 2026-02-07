@@ -3,141 +3,201 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @inject HttpClient Http
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</PageTitle>
 
-<div class="max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold text-gray-800 mb-6">@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</h1>
+<MudContainer MaxWidth="MaxWidth.Large">
+    <div class="d-flex align-center mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                      Href="/" 
+                      Color="Color.Default" />
+        <MudText Typo="Typo.h4" Class="ml-2">@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</MudText>
+    </div>
 
     @if (!string.IsNullOrEmpty(errorMessage))
     {
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-            @errorMessage
-        </div>
+        <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
     }
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <EditForm Model="formModel" OnValidSubmit="HandleSubmit" FormName="worklogForm">
+    <MudPaper Elevation="2" Class="pa-6">
+        <EditForm Model="formModel" OnValidSubmit="HandleSubmit">
             <DataAnnotationsValidator />
+            <ValidationSummary Class="mb-4" />
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <MudGrid>
                 @* 標題 *@
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">標題 *</label>
-                    <InputText @bind-Value="formModel.Title" class="input-field" placeholder="工作紀錄標題" />
-                    <ValidationMessage For="() => formModel.Title" class="text-red-500 text-xs mt-1" />
-                </div>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="formModel.Title" 
+                                 Label="標題" 
+                                 Variant="Variant.Outlined"
+                                 Required="true"
+                                 For="@(() => formModel.Title)" />
+                </MudItem>
 
                 @* 紀錄日期 *@
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">紀錄日期 *</label>
-                    <InputDate @bind-Value="formModel.RecordDate" class="input-field" />
-                    <ValidationMessage For="() => formModel.RecordDate" class="text-red-500 text-xs mt-1" />
-                </div>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="recordDate" 
+                                  Label="紀錄日期" 
+                                  Variant="Variant.Outlined"
+                                  DateFormat="yyyy-MM-dd"
+                                  Required="true" />
+                </MudItem>
 
                 @* 專案名稱 *@
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">專案名稱 *</label>
-                    <InputSelect @bind-Value="formModel.ProjectId" class="input-field">
-                        <option value="0">-- 請選擇 --</option>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="formModel.ProjectId" 
+                              Label="專案名稱" 
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              T="int">
+                        <MudSelectItem Value="0" Disabled="true">-- 請選擇 --</MudSelectItem>
                         @foreach (var p in projects)
                         {
-                            <option value="@p.Id">@p.Name</option>
+                            <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
                         }
-                    </InputSelect>
-                    <ValidationMessage For="() => formModel.ProjectId" class="text-red-500 text-xs mt-1" />
-                </div>
+                    </MudSelect>
+                </MudItem>
 
                 @* 工時 *@
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">工時（小時） *</label>
-                    <InputNumber @bind-Value="formModel.WorkHours" class="input-field" step="0.5" />
-                    <ValidationMessage For="() => formModel.WorkHours" class="text-red-500 text-xs mt-1" />
-                </div>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="formModel.WorkHours" 
+                                    Label="工時（小時）" 
+                                    Variant="Variant.Outlined"
+                                    Step="0.5M"
+                                    Min="0M"
+                                    Required="true"
+                                    T="decimal" />
+                </MudItem>
 
                 @* 處理狀態 *@
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">處理狀態 *</label>
-                    <InputSelect @bind-Value="formModel.ProcessStatusId" class="input-field">
-                        <option value="0">-- 請選擇 --</option>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="formModel.ProcessStatusId" 
+                              Label="處理狀態" 
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              T="int">
+                        <MudSelectItem Value="0" Disabled="true">-- 請選擇 --</MudSelectItem>
                         @foreach (var s in processStatuses)
                         {
-                            <option value="@s.Id">@s.Name</option>
+                            <MudSelectItem Value="@s.Id">@s.Name</MudSelectItem>
                         }
-                    </InputSelect>
-                    <ValidationMessage For="() => formModel.ProcessStatusId" class="text-red-500 text-xs mt-1" />
-                </div>
-            </div>
+                    </MudSelect>
+                </MudItem>
 
-            @* 業管單位（複選） *@
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">業管單位 *（可複選）</label>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    @foreach (var dept in departments)
+                @* 業管單位（複選） *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        業管單位 
+                        <span style="color: var(--mud-palette-error);">*</span>
+                        （可複選，請至少選擇一個）
+                    </MudText>
+                    @if (departments.Count > 0)
                     {
-                        <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
-                            <input type="checkbox" checked="@formModel.DepartmentIds.Contains(dept.Id)"
-                                   @onchange="(e) => ToggleSelection(formModel.DepartmentIds, dept.Id, (bool)e.Value!)"
-                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            <span>@dept.Name</span>
-                        </label>
+                        <MudGrid>
+                            @foreach (var dept in departments)
+                            {
+                                <MudItem xs="6" sm="4">
+                                    <MudCheckBox Value="@CheckedDepartments[dept.Id]"
+                                                ValueChanged="@((bool val) => OnDepartmentChanged(dept.Id, val))"
+                                                Label="@dept.Name"
+                                                Color="Color.Primary" />
+                                </MudItem>
+                            }
+                        </MudGrid>
                     }
-                </div>
-                @if (departments.Count == 0)
-                {
-                    <p class="text-gray-400 text-sm">尚未建立業管單位，請聯繫管理員</p>
-                }
-            </div>
-
-            @* 工作類型（複選） *@
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">工作類型 *（可複選）</label>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    @foreach (var wt in workTypes)
+                    else
                     {
-                        <label class="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer">
-                            <input type="checkbox" checked="@formModel.WorkTypeIds.Contains(wt.Id)"
-                                   @onchange="(e) => ToggleSelection(formModel.WorkTypeIds, wt.Id, (bool)e.Value!)"
-                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            <span>@wt.Name</span>
-                        </label>
+                        <MudAlert Severity="Severity.Warning" Class="mt-2">
+                            尚未建立業管單位，請聯繫管理員
+                        </MudAlert>
                     }
-                </div>
-            </div>
+                </MudItem>
 
-            @* 內文 *@
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">內文 *</label>
-                <InputTextArea @bind-Value="formModel.Content" class="input-field" rows="5" placeholder="工作內容描述..." />
-                <ValidationMessage For="() => formModel.Content" class="text-red-500 text-xs mt-1" />
-            </div>
+                @* 工作類型（複選） *@
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        工作類型 
+                        <span style="color: var(--mud-palette-error);">*</span>
+                        （可複選，請至少選擇一個）
+                    </MudText>
+                    @if (workTypes.Count > 0)
+                    {
+                        <MudGrid>
+                            @foreach (var wt in workTypes)
+                            {
+                                <MudItem xs="6" sm="4">
+                                    <MudCheckBox Value="@CheckedWorkTypes[wt.Id]"
+                                                ValueChanged="@((bool val) => OnWorkTypeChanged(wt.Id, val))"
+                                                Label="@wt.Name"
+                                                Color="Color.Primary" />
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="mt-2">
+                            尚未建立工作類型，請聯繫管理員
+                        </MudAlert>
+                    }
+                </MudItem>
 
-            @* 按鈕 *@
-            <div class="mt-6 flex gap-3">
-                <button type="submit" class="btn-primary" disabled="@isSubmitting">
-                    @(isSubmitting ? "儲存中..." : (IsEdit ? "更新" : "新增"))
-                </button>
-                <a href="/" class="btn-secondary">取消</a>
-            </div>
+                @* 內文 *@
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="formModel.Content" 
+                                 Label="內文" 
+                                 Variant="Variant.Outlined"
+                                 Lines="5"
+                                 Required="true"
+                                 For="@(() => formModel.Content)" />
+                </MudItem>
+
+                @* 按鈕 *@
+                <MudItem xs="12" Class="d-flex gap-3 mt-2">
+                    <MudButton ButtonType="ButtonType.Submit" 
+                              Variant="Variant.Filled" 
+                              Color="Color.Primary"
+                              StartIcon="@Icons.Material.Filled.Save"
+                              Disabled="@isSubmitting">
+                        @(isSubmitting ? "儲存中..." : (IsEdit ? "更新" : "新增"))
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" 
+                              Color="Color.Default"
+                              Href="/"
+                              StartIcon="@Icons.Material.Filled.Cancel">
+                        取消
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
         </EditForm>
-    </div>
-</div>
+    </MudPaper>
+</MudContainer>
 
 @code {
     [Parameter] public int Id { get; set; }
     private bool IsEdit => Id > 0;
 
     private WorkLogRequest formModel = new() { RecordDate = DateOnly.FromDateTime(DateTime.Today) };
+    private DateTime? recordDate = DateTime.Today;
     private List<LookupItemDto> projects = new();
     private List<LookupItemDto> departments = new();
     private List<LookupItemDto> workTypes = new();
     private List<LookupItemDto> processStatuses = new();
+    private Dictionary<int, bool> CheckedDepartments = new();
+    private Dictionary<int, bool> CheckedWorkTypes = new();
     private string? errorMessage;
     private bool isSubmitting;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadLookups();
+
+        // 初始化 checkbox 字典
+        foreach (var dept in departments)
+            CheckedDepartments[dept.Id] = false;
+        foreach (var wt in workTypes)
+            CheckedWorkTypes[wt.Id] = false;
 
         if (IsEdit)
         {
@@ -157,6 +217,17 @@
                         DepartmentIds = log.Departments.Select(d => d.Id).ToList(),
                         WorkTypeIds = log.WorkTypes.Select(w => w.Id).ToList()
                     };
+                    
+                    recordDate = log.RecordDate.ToDateTime(TimeOnly.MinValue);
+                    
+                    // 設定已選中的項目
+                    foreach (var deptId in formModel.DepartmentIds)
+                        if (CheckedDepartments.ContainsKey(deptId))
+                            CheckedDepartments[deptId] = true;
+                    
+                    foreach (var wtId in formModel.WorkTypeIds)
+                        if (CheckedWorkTypes.ContainsKey(wtId))
+                            CheckedWorkTypes[wtId] = true;
                 }
             }
             catch
@@ -164,6 +235,18 @@
                 errorMessage = "載入紀錄失敗";
             }
         }
+    }
+
+    private void OnDepartmentChanged(int deptId, bool isChecked)
+    {
+        CheckedDepartments[deptId] = isChecked;
+        formModel.DepartmentIds = CheckedDepartments.Where(x => x.Value).Select(x => x.Key).ToList();
+    }
+
+    private void OnWorkTypeChanged(int wtId, bool isChecked)
+    {
+        CheckedWorkTypes[wtId] = isChecked;
+        formModel.WorkTypeIds = CheckedWorkTypes.Where(x => x.Value).Select(x => x.Key).ToList();
     }
 
     private async Task LoadLookups()
@@ -183,6 +266,10 @@
         isSubmitting = true;
         errorMessage = null;
 
+        // 轉換日期
+        if (recordDate.HasValue)
+            formModel.RecordDate = DateOnly.FromDateTime(recordDate.Value);
+
         try
         {
             HttpResponseMessage response;
@@ -192,23 +279,23 @@
                 response = await Http.PostAsJsonAsync("api/worklogs", formModel);
 
             if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(IsEdit ? "工作紀錄已更新" : "工作紀錄已新增", Severity.Success);
                 Navigation.NavigateTo("/");
+            }
             else
-                errorMessage = "儲存失敗，請檢查欄位是否填寫完整";
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"儲存失敗: {errorContent}";
+                Snackbar.Add("儲存失敗，請檢查欄位是否填寫完整", Severity.Error);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            errorMessage = "發生錯誤，請稍後再試";
+            errorMessage = $"發生錯誤: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
         }
 
         isSubmitting = false;
-    }
-
-    private static void ToggleSelection(List<int> list, int id, bool isChecked)
-    {
-        if (isChecked && !list.Contains(id))
-            list.Add(id);
-        else if (!isChecked)
-            list.Remove(id);
     }
 }

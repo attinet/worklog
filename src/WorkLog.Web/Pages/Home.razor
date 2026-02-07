@@ -3,154 +3,200 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>工作紀錄</PageTitle>
 
 <!-- 待辦事項儀表板 -->
-<div class="mb-6">
+<MudContainer MaxWidth="MaxWidth.False" Class="mb-4">
     <TodoDashboard />
-</div>
+</MudContainer>
 
-<div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">我的工作紀錄</h1>
-    <div class="flex gap-2">
-        <button @onclick="ExportToExcel" class="btn-secondary" disabled="@isExporting">
-            @if (isExporting)
-            {
-                <span>匯出中...</span>
-            }
-            else
-            {
-                <span>📥 匯出Excel</span>
-            }
-        </button>
-        <a href="/worklogs/create" class="btn-primary">+ 新增紀錄</a>
-    </div>
-</div>
-
-@* 篩選面板 *@
-<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">專案</label>
-            <InputSelect @bind-Value="selectedProjectId" class="input-field" @onchange="OnFilterChanged">
-                <option value="">全部</option>
-                @foreach (var p in projects)
-                {
-                    <option value="@p.Id">@p.Name</option>
-                }
-            </InputSelect>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">狀態</label>
-            <InputSelect @bind-Value="selectedStatusId" class="input-field" @onchange="OnFilterChanged">
-                <option value="">全部</option>
-                @foreach (var s in statuses)
-                {
-                    <option value="@s.Id">@s.Name</option>
-                }
-            </InputSelect>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">關鍵字</label>
-            <input type="text" @bind="keyword" @bind:event="oninput" placeholder="搜尋標題或內文..." class="input-field" />
-        </div>
-        <div class="flex items-end">
-            <button @onclick="ResetFilters" class="btn-secondary w-full">清除篩選</button>
+<MudContainer MaxWidth="MaxWidth.False">
+    <!-- 頂部操作列 -->
+    <div class="d-flex justify-space-between align-center mb-4">
+        <MudText Typo="Typo.h4">我的工作紀錄</MudText>
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Outlined" 
+                      Color="Color.Secondary" 
+                      StartIcon="@Icons.Material.Filled.Download"
+                      OnClick="ExportToExcel"
+                      Disabled="@isExporting">
+                @(isExporting ? "匯出中..." : "匯出Excel")
+            </MudButton>
+            <MudButton Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      StartIcon="@Icons.Material.Filled.Add"
+                      Href="/worklogs/create">
+                新增紀錄
+            </MudButton>
         </div>
     </div>
-</div>
 
-@* 日曆 *@
-@if (isLoading)
-{
-    <div class="text-center py-10 text-gray-500">載入中...</div>
-}
-else
-{
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <Calendar CurrentMonth="@currentMonth"
-                  WorkLogsByDate="@workLogsByDate"
-                  SelectedDate="@selectedDate"
-                  OnDateSelected="@OnDateSelected"
-                  OnMonthChanged="@OnMonthChanged" />
-    </div>
-}
-
-@* 選中日期的工作紀錄詳情 *@
-@if (selectedDate.HasValue && selectedDayLogs.Any())
-{
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold text-gray-800">
-                @selectedDate.Value.ToString("yyyy年 M月 d日") 的工作紀錄
-            </h3>
-            <span class="text-sm text-gray-600">
-                共 @selectedDayLogs.Count 筆，合計 @selectedDayLogs.Sum(l => l.WorkHours).ToString("0.#") 小時
-            </span>
-        </div>
-
-        <div class="space-y-3">
-            @foreach (var log in selectedDayLogs)
-            {
-                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-gray-900 mb-1">@log.Title</h4>
-                            <div class="flex flex-wrap gap-2 text-xs text-gray-600 mb-2">
-                                <span class="flex items-center gap-1">
-                                    📁 @log.Project.Name
-                                </span>
-                                <span class="flex items-center gap-1">
-                                    ⏱ @log.WorkHours.ToString("0.#") 小時
-                                </span>
-                                <span class="@GetStatusBadgeClass(log.ProcessStatus.Name)">
-                                    @log.ProcessStatus.Name
-                                </span>
-                            </div>
-                            @if (log.WorkTypes.Any())
-                            {
-                                <div class="flex flex-wrap gap-1 mb-2">
-                                    @foreach (var type in log.WorkTypes)
-                                    {
-                                        <span class="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded">@type.Name</span>
-                                    }
-                                </div>
-                            }
-                            @if (log.Departments.Any())
-                            {
-                                <div class="flex flex-wrap gap-1">
-                                    @foreach (var dept in log.Departments)
-                                    {
-                                        <span class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">🏢 @dept.Name</span>
-                                    }
-                                </div>
-                            }
-                        </div>
-                        <div class="flex gap-2 ml-4">
-                            <a href="/worklogs/@log.Id/edit" class="text-blue-600 hover:text-blue-800 text-sm font-medium">編輯</a>
-                            <button @onclick="() => DeleteLog(log.Id)" class="text-red-500 hover:text-red-700 text-sm font-medium">刪除</button>
-                        </div>
-                    </div>
-                    
-                    @if (!string.IsNullOrEmpty(log.Content))
+    <!-- 篩選面板 -->
+    <MudPaper Elevation="2" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect Value="@selectedProjectId" 
+                          Label="專案" 
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Clearable="true"
+                          T="int?"
+                          ValueChanged="@(async (int? val) => { selectedProjectId = val; await OnFilterChanged(); })">
+                    @foreach (var p in projects)
                     {
-                        <div class="text-sm text-gray-600 mt-3 pt-3 border-t border-gray-100">
-                            <div class="line-clamp-2">@log.Content</div>
-                        </div>
+                        <MudSelectItem Value="@((int?)p.Id)">@p.Name</MudSelectItem>
                     }
-                </div>
-            }
-        </div>
-    </div>
-}
-else if (selectedDate.HasValue && !selectedDayLogs.Any())
-{
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-        <p class="text-gray-500">@selectedDate.Value.ToString("yyyy年 M月 d日") 沒有工作紀錄</p>
-        <a href="/worklogs/create" class="btn-primary inline-block mt-4">新增紀錄</a>
-    </div>
-}
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect Value="@selectedStatusId" 
+                          Label="狀態" 
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Clearable="true"
+                          T="int?"
+                          ValueChanged="@(async (int? val) => { selectedStatusId = val; await OnFilterChanged(); })">
+                    @foreach (var s in statuses)
+                    {
+                        <MudSelectItem Value="@((int?)s.Id)">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="keyword" 
+                             Label="關鍵字搜尋" 
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             Placeholder="搜尋標題或內文..."
+                             Immediate="true"
+                             DebounceInterval="500"
+                             OnDebounceIntervalElapsed="@(async (string _) => await OnFilterChanged())" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="2" Class="d-flex align-end">
+                <MudButton Variant="Variant.Outlined" 
+                          OnClick="ResetFilters"
+                          FullWidth="true"
+                          StartIcon="@Icons.Material.Filled.FilterAltOff">
+                    清除篩選
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- 日曆 -->
+    @if (isLoading)
+    {
+        <MudPaper Elevation="2" Class="pa-8 text-center mb-4">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-2">載入中...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Elevation="2" Class="pa-4 mb-4">
+            <Calendar CurrentMonth="@currentMonth"
+                      WorkLogsByDate="@workLogsByDate"
+                      SelectedDate="@selectedDate"
+                      OnDateSelected="@OnDateSelected"
+                      OnMonthChanged="@OnMonthChanged" />
+        </MudPaper>
+    }
+
+    <!-- 選中日期的工作紀錄詳情 -->
+    @if (selectedDate.HasValue && selectedDayLogs.Any())
+    {
+        <MudPaper Elevation="2" Class="pa-4">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6">
+                    @selectedDate.Value.ToString("yyyy年 M月 d日") 的工作紀錄
+                </MudText>
+                <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                    共 @selectedDayLogs.Count 筆，合計 @selectedDayLogs.Sum(l => l.WorkHours).ToString("0.#") 小時
+                </MudChip>
+            </div>
+
+            <MudStack Spacing="3">
+                @foreach (var log in selectedDayLogs)
+                {
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <div class="d-flex justify-space-between align-start mb-2">
+                            <div style="flex: 1">
+                                <MudText Typo="Typo.h6" Class="mb-2">@log.Title</MudText>
+                                <MudStack Row="true" Spacing="2" Class="mb-2">
+                                    <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Folder" Color="Color.Default">
+                                        @log.Project.Name
+                                    </MudChip>
+                                    <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.AccessTime" Color="Color.Default">
+                                        @log.WorkHours.ToString("0.#") 小時
+                                    </MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(log.ProcessStatus.Name)">
+                                        @log.ProcessStatus.Name
+                                    </MudChip>
+                                </MudStack>
+                                @if (log.WorkTypes.Any())
+                                {
+                                    <MudStack Row="true" Spacing="1" Class="mb-2">
+                                        @foreach (var type in log.WorkTypes)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">@type.Name</MudChip>
+                                        }
+                                    </MudStack>
+                                }
+                                @if (log.Departments.Any())
+                                {
+                                    <MudStack Row="true" Spacing="1">
+                                        @foreach (var dept in log.Departments)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Icon="@Icons.Material.Filled.Business" Color="Color.Default" Variant="Variant.Text">
+                                                @dept.Name
+                                            </MudChip>
+                                        }
+                                    </MudStack>
+                                }
+                            </div>
+                            <MudStack Row="true" Spacing="2" Class="ml-4">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                              Color="Color.Primary" 
+                                              Size="Size.Small"
+                                              Href="@($"/worklogs/{log.Id}/edit")" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                              Color="Color.Error" 
+                                              Size="Size.Small"
+                                              OnClick="@(() => DeleteLog(log.Id))" />
+                            </MudStack>
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(log.Content))
+                        {
+                            <MudDivider Class="my-2" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                @log.Content
+                            </MudText>
+                        }
+                    </MudPaper>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+    else if (selectedDate.HasValue && !selectedDayLogs.Any())
+    {
+        <MudPaper Elevation="2" Class="pa-8 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">
+                @selectedDate.Value.ToString("yyyy年 M月 d日") 沒有工作紀錄
+            </MudText>
+            <MudButton Variant="Variant.Filled" 
+                      Color="Color.Primary" 
+                      StartIcon="@Icons.Material.Filled.Add"
+                      Href="/worklogs/create">
+                新增紀錄
+            </MudButton>
+        </MudPaper>
+    }
+</MudContainer>
 
 @code {
     private Dictionary<DateOnly, List<WorkLogResponse>> workLogsByDate = new();
@@ -252,7 +298,13 @@ else if (selectedDate.HasValue && !selectedDayLogs.Any())
 
     private async Task DeleteLog(int id)
     {
-        if (!await ShowConfirm("確定要刪除這筆工作紀錄嗎？"))
+        bool? result = await DialogService.ShowMessageBox(
+            "刪除確認", 
+            "確定要刪除這筆工作紀錄嗎？", 
+            yesText: "刪除", 
+            cancelText: "取消");
+        
+        if (result != true)
             return;
 
         try
@@ -329,11 +381,11 @@ async Task ExportToExcel()
         _        => "badge-gray"
     };
 
-    // 簡單的確認對話框（使用瀏覽器原生 confirm）
-    private async Task<bool> ShowConfirm(string message)
+    private static Color GetStatusColor(string status) => status switch
     {
-        // 在實際應用中，這裡可以使用更好的 UI 元件
-        // 暫時返回 true，實際刪除前應該有確認機制
-        return true;
-    }
+        "已完成" => Color.Success,
+        "處理中" => Color.Info,
+        "擱置"   => Color.Warning,
+        _        => Color.Default
+    };
 }
