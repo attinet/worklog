@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WorkLog.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+28959722d34b4c719b408fbeb8a24d3d5a2b42ff")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9390dee100955d3f89e784365826ab3e32bb700d")]
 [assembly: System.Reflection.AssemblyProductAttribute("WorkLog.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WorkLog.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
