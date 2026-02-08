@@ -12,20 +12,20 @@
 </div>
 
 @* 星期標題 *@
-<MudGrid Spacing="1" Class="mb-2">
+<div class="calendar-week-header">
     @foreach (var day in new[] { "日", "一", "二", "三", "四", "五", "六" })
     {
-        <MudItem xs="12/7" Class="d-flex justify-center align-center pa-2">
+        <div class="calendar-day-header">
             <MudText Typo="Typo.subtitle2" Color="Color.Secondary">@day</MudText>
-        </MudItem>
+        </div>
     }
-</MudGrid>
+</div>
 
 @* 日期網格 *@
-<MudGrid Spacing="1">
+<div class="calendar-grid">
     @foreach (var date in GetCalendarDates())
     {
-        <MudItem xs="12/7" Class="d-flex justify-center">
+        <div class="calendar-cell">
             <MudPaper Class="@GetDateClass(date)" 
                      @onclick="() => SelectDate(date)" 
                      Style="@($"width: 100%; min-height: 80px; cursor: pointer; {GetDateStyle(date)}")">
@@ -47,9 +47,36 @@
                     }
                 </div>
             </MudPaper>
-        </MudItem>
+        </div>
     }
-</MudGrid>
+</div>
+
+<style>
+    .calendar-week-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .calendar-day-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 8px;
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+    }
+
+    .calendar-cell {
+        display: flex;
+        justify-content: center;
+    }
+</style>
 
 @code {
     [Parameter]
