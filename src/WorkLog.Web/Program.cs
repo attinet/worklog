@@ -10,8 +10,12 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// API 基底位址
-var apiBaseUrl = builder.Configuration.GetValue<string>("ApiBaseUrl") ?? "http://localhost:5001";
+// API 基底位址 - 整合部署時使用同源，開發時可透過 appsettings.json 指定
+var apiBaseUrl = builder.Configuration.GetValue<string>("ApiBaseUrl");
+if (string.IsNullOrWhiteSpace(apiBaseUrl))
+{
+    apiBaseUrl = builder.HostEnvironment.BaseAddress;
+}
 
 // LocalStorage
 builder.Services.AddBlazoredLocalStorage();

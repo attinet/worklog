@@ -10,6 +10,7 @@
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="ClosedXML.Parser" Version="2.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -23,5 +24,23 @@
     <ProjectReference Include="..\WorkLog.Infrastructure\WorkLog.Infrastructure.csproj" />
     <ProjectReference Include="..\WorkLog.Shared\WorkLog.Shared.csproj" />
   </ItemGroup>
+
+  <!-- 發佈時自動包含 Blazor WASM 前端 -->
+  <Target Name="PublishBlazorApp" BeforeTargets="Publish">
+    <Message Text="正在發佈 Blazor WASM 前端..." Importance="high" />
+    
+    <!-- 發佈 Blazor 專案 -->
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)\..\WorkLog.Web\WorkLog.Web.csproj&quot; -c $(Configuration)" />
+    
+    <!-- 複製 Blazor 的 wwwroot 到 API 的 wwwroot -->
+    <ItemGroup>
+      <BlazorPublishFiles Include="..\WorkLog.Web\bin\$(Configuration)\net10.0\publish\wwwroot\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(BlazorPublishFiles)" 
+          DestinationFolder="$(MSBuildProjectDirectory)\wwwroot\%(RecursiveDir)" 
+          SkipUnchangedFiles="true" />
+    
+    <Message Text="Blazor 前端已複製到 wwwroot" Importance="high" />
+  </Target>
 
 </Project>

@@ -126,11 +126,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// 不使用 HTTPS 重定向
+// app.UseHttpsRedirection();
+
+// 提供 Blazor WASM 靜態檔案
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// SPA fallback - 所有找不到的路由回傳 index.html
+app.MapFallbackToFile("index.html");
 
 // ===== Auto-Migrate Database =====
 using (var scope = app.Services.CreateScope())

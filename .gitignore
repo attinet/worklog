@@ -1,8 +1,10 @@
 # Ignore build output directories
 bin/
 obj/
+publish/
 **/bin/
 **/obj/
+**/publish/
 
 # (existing per-file ignores below were generated previously)
 src/WorkLog.Api/obj/Debug/net10.0/WorkLog.Api.AssemblyInfo.cs
