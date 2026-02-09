@@ -101,6 +101,7 @@
                       WorkLogsByDate="@workLogsByDate"
                       SelectedDate="@selectedDate"
                       OnDateSelected="@OnDateSelected"
+                      OnDateDoubleClicked="@OnDateDoubleClicked"
                       OnMonthChanged="@OnMonthChanged" />
         </MudPaper>
     }
@@ -287,6 +288,39 @@
     {
         selectedDate = date;
         selectedDayLogs = workLogsByDate.GetValueOrDefault(date, new());
+    }
+
+    private async Task OnDateDoubleClicked(DateOnly date)
+    {
+        var parameters = new DialogParameters<WorkLogFormDialog>
+        {
+            { x => x.SelectedDate, date }
+        };
+
+        var options = new DialogOptions 
+        { 
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        var dialog = await DialogService.ShowAsync<WorkLogFormDialog>(
+            $"新增 {date:yyyy年 M月 d日} 的工作紀錄",
+            parameters,
+            options
+        );
+
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            // 重新載入當月數據
+            await LoadMonthData();
+            
+            // 重新選中該日期以顯示新增的紀錄
+            selectedDate = date;
+            selectedDayLogs = workLogsByDate.GetValueOrDefault(date, new());
+        }
     }
 
     private async Task OnFilterChanged()

@@ -1,26 +1,13 @@
-@page "/worklogs/create"
-@page "/worklogs/{Id:int}/edit"
-@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @inject HttpClient Http
-@inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
-<PageTitle>@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</PageTitle>
+<MudDialog>
+    <DialogContent>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
+        }
 
-<MudContainer MaxWidth="MaxWidth.Large">
-    <div class="d-flex align-center mb-4">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
-                      Href="/" 
-                      Color="Color.Default" />
-        <MudText Typo="Typo.h4" Class="ml-2">@(IsEdit ? "編輯工作紀錄" : "新增工作紀錄")</MudText>
-    </div>
-
-    @if (!string.IsNullOrEmpty(errorMessage))
-    {
-        <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
-    }
-
-    <MudPaper Elevation="2" Class="pa-6">
         <EditForm Model="formModel" OnValidSubmit="HandleSubmit">
             <DataAnnotationsValidator />
             <ValidationSummary Class="mb-4" />
@@ -163,27 +150,25 @@
                                  Required="true"
                                  For="@(() => formModel.Content)" />
                 </MudItem>
-
-                @* 按鈕 *@
-                <MudItem xs="12" Class="d-flex gap-3 mt-2">
-                    <MudButton ButtonType="ButtonType.Submit" 
-                              Variant="Variant.Filled" 
-                              Color="Color.Primary"
-                              StartIcon="@Icons.Material.Filled.Save"
-                              Disabled="@isSubmitting">
-                        @(isSubmitting ? "儲存中..." : (IsEdit ? "更新" : "新增"))
-                    </MudButton>
-                    <MudButton Variant="Variant.Outlined" 
-                              Color="Color.Default"
-                              Href="/"
-                              StartIcon="@Icons.Material.Filled.Cancel">
-                        取消
-                    </MudButton>
-                </MudItem>
             </MudGrid>
         </EditForm>
-    </MudPaper>
-</MudContainer>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel" 
+                  Variant="Variant.Outlined" 
+                  Color="Color.Default">
+            取消
+        </MudButton>
+        <MudButton OnClick="Submit" 
+                  Variant="Variant.Filled" 
+                  Color="Color.Primary"
+                  StartIcon="@Icons.Material.Filled.Save"
+                  Disabled="@isSubmitting">
+            @(isSubmitting ? "儲存中..." : "新增")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 <style>
     /* 確保原生日期選擇器不被遮擋 */
@@ -197,20 +182,23 @@
         z-index: 100;
     }
     
-    /* 確保容器不會裁切日期選擇器 */
-    .mud-grid-item,
-    .mud-paper,
-    .mud-container {
+    /* 確保对话框容器不會裁切日期選擇器 */
+    .mud-dialog,
+    .mud-dialog-content,
+    .mud-grid-item {
         overflow: visible !important;
     }
 </style>
 
 @code {
-    [Parameter] public int Id { get; set; }
-    private bool IsEdit => Id > 0;
+    [CascadingParameter] 
+    private MudDialogInstance MudDialog { get; set; } = null!;
 
-    private WorkLogRequest formModel = new() { RecordDate = DateOnly.FromDateTime(DateTime.Today) };
-    private string recordDateString = DateTime.Today.ToString("yyyy-MM-dd");
+    [Parameter] 
+    public DateOnly SelectedDate { get; set; }
+
+    private WorkLogRequest formModel = new();
+    private string recordDateString = string.Empty;
     private List<LookupItemDto> projects = new();
     private List<LookupItemDto> departments = new();
     private List<LookupItemDto> workTypes = new();
@@ -222,6 +210,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // 設定預設日期
+        formModel.RecordDate = SelectedDate;
+        recordDateString = SelectedDate.ToString("yyyy-MM-dd");
+
         await LoadLookups();
 
         // 初始化 checkbox 字典
@@ -229,43 +221,6 @@
             CheckedDepartments[dept.Id] = false;
         foreach (var wt in workTypes)
             CheckedWorkTypes[wt.Id] = false;
-
-        if (IsEdit)
-        {
-            try
-            {
-                var log = await Http.GetFromJsonAsync<WorkLogResponse>($"api/worklogs/{Id}");
-                if (log != null)
-                {
-                    formModel = new WorkLogRequest
-                    {
-                        Title = log.Title,
-                        Content = log.Content,
-                        RecordDate = log.RecordDate,
-                        WorkHours = log.WorkHours,
-                        ProjectId = log.Project.Id,
-                        ProcessStatusId = log.ProcessStatus.Id,
-                        DepartmentIds = log.Departments.Select(d => d.Id).ToList(),
-                        WorkTypeIds = log.WorkTypes.Select(w => w.Id).ToList()
-                    };
-                    
-                    recordDateString = log.RecordDate.ToString("yyyy-MM-dd");
-                    
-                    // 設定已選中的項目
-                    foreach (var deptId in formModel.DepartmentIds)
-                        if (CheckedDepartments.ContainsKey(deptId))
-                            CheckedDepartments[deptId] = true;
-                    
-                    foreach (var wtId in formModel.WorkTypeIds)
-                        if (CheckedWorkTypes.ContainsKey(wtId))
-                            CheckedWorkTypes[wtId] = true;
-                }
-            }
-            catch
-            {
-                errorMessage = "載入紀錄失敗";
-            }
-        }
     }
 
     private void OnDepartmentChanged(int deptId, bool isChecked)
@@ -292,7 +247,7 @@
         catch { }
     }
 
-    private async Task HandleSubmit()
+    private async Task Submit()
     {
         isSubmitting = true;
         errorMessage = null;
@@ -303,18 +258,57 @@
             formModel.RecordDate = DateOnly.FromDateTime(parsedDate);
         }
 
+        // 驗證必填欄位
+        if (string.IsNullOrWhiteSpace(formModel.Title))
+        {
+            errorMessage = "請輸入標題";
+            isSubmitting = false;
+            return;
+        }
+
+        if (formModel.ProjectId == 0)
+        {
+            errorMessage = "請選擇專案";
+            isSubmitting = false;
+            return;
+        }
+
+        if (formModel.ProcessStatusId == 0)
+        {
+            errorMessage = "請選擇處理狀態";
+            isSubmitting = false;
+            return;
+        }
+
+        if (!formModel.DepartmentIds.Any())
+        {
+            errorMessage = "請至少選擇一個業管單位";
+            isSubmitting = false;
+            return;
+        }
+
+        if (!formModel.WorkTypeIds.Any())
+        {
+            errorMessage = "請至少選擇一個工作類型";
+            isSubmitting = false;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(formModel.Content))
+        {
+            errorMessage = "請輸入內文";
+            isSubmitting = false;
+            return;
+        }
+
         try
         {
-            HttpResponseMessage response;
-            if (IsEdit)
-                response = await Http.PutAsJsonAsync($"api/worklogs/{Id}", formModel);
-            else
-                response = await Http.PostAsJsonAsync("api/worklogs", formModel);
+            var response = await Http.PostAsJsonAsync("api/worklogs", formModel);
 
             if (response.IsSuccessStatusCode)
             {
-                Snackbar.Add(IsEdit ? "工作紀錄已更新" : "工作紀錄已新增", Severity.Success);
-                Navigation.NavigateTo("/");
+                Snackbar.Add("工作紀錄已新增", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
             }
             else
             {
@@ -330,5 +324,15 @@
         }
 
         isSubmitting = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        await Submit();
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
     }
 }

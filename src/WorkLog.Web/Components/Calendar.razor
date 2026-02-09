@@ -28,6 +28,7 @@
         <div class="calendar-cell">
             <MudPaper Class="@GetDateClass(date)" 
                      @onclick="() => SelectDate(date)" 
+                     @ondblclick="() => DoubleClickDate(date)"
                      Style="@($"width: 100%; min-height: 80px; cursor: pointer; {GetDateStyle(date)}")">
                 <div class="d-flex flex-column align-center pa-2">
                     <MudText Typo="Typo.body2">@date.Day</MudText>
@@ -90,6 +91,9 @@
 
     [Parameter]
     public EventCallback<DateOnly> OnDateSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<DateOnly> OnDateDoubleClicked { get; set; }
 
     [Parameter]
     public EventCallback<DateTime> OnMonthChanged { get; set; }
@@ -194,6 +198,15 @@
             return;
 
         await OnDateSelected.InvokeAsync(date);
+    }
+
+    private async Task DoubleClickDate(DateOnly date)
+    {
+        // 只允許雙擊當前月份的日期
+        if (date.Month != currentMonth.Month)
+            return;
+
+        await OnDateDoubleClicked.InvokeAsync(date);
     }
 
     private async Task PreviousMonth()

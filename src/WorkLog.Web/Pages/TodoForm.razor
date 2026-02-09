@@ -73,11 +73,21 @@
                     </MudItem>
                     <!-- 截止日期 -->
                     <MudItem xs="12" sm="6" md="4">
-                        <MudDatePicker @bind-Date="@dueDate" 
-                                      Label="截止日期" 
-                                      Variant="Variant.Outlined"
-                                      Editable="true"
-                                      DateFormat="yyyy/MM/dd" />
+                        <div class="mud-input-control mud-input-input-control">
+                            <div class="mud-input-control-input-container">
+                                <div class="mud-input mud-input-outlined mud-shrink">
+                                    <input type="date" 
+                                           value="@dueDateString"
+                                           @onchange="@((ChangeEventArgs e) => dueDateString = e.Value?.ToString())"
+                                           class="mud-input-slot mud-input-root mud-input-root-outlined"
+                                           style="box-sizing: border-box; padding: 16.5px 14px;" />
+                                    <label class="mud-input-label mud-input-label-outlined" style="transform: translate(14px, -9px) scale(0.75); z-index: 1; background: white; padding: 0 5px;">截止日期</label>
+                                    <fieldset class="mud-input-outlined-border">
+                                        <legend style="width: 0.01px;"><span>&#8203;</span></legend>
+                                    </fieldset>
+                                </div>
+                            </div>
+                        </div>
                     </MudItem>
 
                     <!-- 優先順序 -->
@@ -244,6 +254,26 @@
     }
 </MudContainer>
 
+<style>
+    /* 確保原生日期選擇器不被遮擋 */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        z-index: 2000;
+        cursor: pointer;
+    }
+    
+    input[type="date"] {
+        position: relative;
+        z-index: 100;
+    }
+    
+    /* 確保容器不會裁切日期選擇器 */
+    .mud-grid-item,
+    .mud-paper,
+    .mud-container {
+        overflow: visible !important;
+    }
+</style>
+
 @code {
     [Parameter] public int? Id { get; set; }
 
@@ -256,7 +286,7 @@
     private bool submitting = false;
     private string? errorMessage;
     private string? newSubTaskTitle;
-    private DateTime? dueDate;
+    private string? dueDateString;
 
     protected override async Task OnInitializedAsync()
     {
@@ -291,7 +321,7 @@
             editModel.Status = existingTodo.Status;
             editModel.CategoryId = existingTodo.Category?.Id;
             
-            dueDate = existingTodo.DueDate;
+            dueDateString = existingTodo.DueDate?.ToString("yyyy-MM-dd");
         }
     }
 
@@ -303,13 +333,19 @@
         try
         {
             // 同步日期
+            DateTime? parsedDate = null;
+            if (!string.IsNullOrWhiteSpace(dueDateString) && DateTime.TryParse(dueDateString, out var tempDate))
+            {
+                parsedDate = tempDate;
+            }
+            
             if (IsEditMode)
             {
-                editModel.DueDate = dueDate;
+                editModel.DueDate = parsedDate;
             }
             else
             {
-                model.DueDate = dueDate;
+                model.DueDate = parsedDate;
             }
 
             if (IsEditMode && Id.HasValue)
