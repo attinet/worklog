@@ -89,7 +89,7 @@ public static class AppTheme
         
         LayoutProperties = new LayoutProperties
         {
-            DefaultBorderRadius = "4px",
+            DefaultBorderRadius = "8px",
             DrawerWidthLeft = "240px",
             DrawerWidthRight = "240px",
             AppbarHeight = "64px"

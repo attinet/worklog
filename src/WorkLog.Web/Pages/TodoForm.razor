@@ -9,18 +9,20 @@
 @attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
-    <MudPaper Elevation="0" Class="mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
                       Color="Color.Default" 
+                      Variant="Variant.Outlined"
+                      Size="Size.Medium"
                       OnClick="@(() => Cancel())" />
-        <MudText Typo="Typo.h4" Inline="true" Class="ml-2">
+        <MudText Typo="Typo.h4" Style="font-weight: 600;">
             @(IsEditMode ? "編輯待辦事項" : "新增待辦事項")
         </MudText>
-    </MudPaper>
+    </MudStack>
 
     @if (loading)
     {
-        <MudPaper Elevation="2" Class="pa-8 text-center">
+        <MudPaper Elevation="2" Class="pa-8 text-center rounded-lg">
             <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
             <MudText Typo="Typo.body1" Class="mt-2">載入中...</MudText>
         </MudPaper>
@@ -30,8 +32,17 @@
         <EditForm Model="@(IsEditMode ? (object)editModel : model)" OnValidSubmit="HandleSubmit">
             <DataAnnotationsValidator />
             
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudGrid>
+            <MudPaper Elevation="2" Class="pa-6 rounded-lg">
+                <MudGrid Spacing="4">
+                    <!-- 基本資訊區 -->
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.subtitle1" Color="Color.Primary" Style="font-weight: 600;">基本資訊</MudText>
+                        </MudStack>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+
                     <!--標題 -->
                     <MudItem xs="12">
                         @if (IsEditMode)
@@ -39,16 +50,22 @@
                             <MudTextField @bind-Value="editModel.Title" 
                                          Label="標題" 
                                          Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
                                          Required="true"
-                                         Placeholder="輸入待辦事項標題" />
+                                         Placeholder="輸入待辦事項標題"
+                                         Adornment="Adornment.Start"
+                                         AdornmentIcon="@Icons.Material.Filled.Title" />
                         }
                         else
                         {
                             <MudTextField @bind-Value="model.Title" 
                                          Label="標題" 
                                          Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
                                          Required="true"
-                                         Placeholder="輸入待辦事項標題" />
+                                         Placeholder="輸入待辦事項標題"
+                                         Adornment="Adornment.Start"
+                                         AdornmentIcon="@Icons.Material.Filled.Title" />
                         }
                     </MudItem>
 
@@ -59,6 +76,7 @@
                             <MudTextField @bind-Value="editModel.Description" 
                                          Label="描述" 
                                          Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
                                          Lines="4"
                                          Placeholder="詳細描述..." />
                         }
@@ -67,27 +85,27 @@
                             <MudTextField @bind-Value="model.Description" 
                                          Label="描述" 
                                          Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
                                          Lines="4"
                                          Placeholder="詳細描述..." />
                         }
                     </MudItem>
+
+                    <!-- 設定區 -->
+                    <MudItem xs="12">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Small" Color="Color.Primary" />
+                            <MudText Typo="Typo.subtitle1" Color="Color.Primary" Style="font-weight: 600;">設定</MudText>
+                        </MudStack>
+                        <MudDivider Class="mb-2" />
+                    </MudItem>
+
                     <!-- 截止日期 -->
                     <MudItem xs="12" sm="6" md="4">
-                        <div class="mud-input-control mud-input-input-control">
-                            <div class="mud-input-control-input-container">
-                                <div class="mud-input mud-input-outlined mud-shrink">
-                                    <input type="date" 
-                                           value="@dueDateString"
-                                           @onchange="@((ChangeEventArgs e) => dueDateString = e.Value?.ToString())"
-                                           class="mud-input-slot mud-input-root mud-input-root-outlined"
-                                           style="box-sizing: border-box; padding: 16.5px 14px;" />
-                                    <label class="mud-input-label mud-input-label-outlined" style="transform: translate(14px, -9px) scale(0.75); z-index: 1; background: white; padding: 0 5px;">截止日期</label>
-                                    <fieldset class="mud-input-outlined-border">
-                                        <legend style="width: 0.01px;"><span>&#8203;</span></legend>
-                                    </fieldset>
-                                </div>
-                            </div>
-                        </div>
+                        <Flatpickr @bind-Value="dueDate"
+                                  Label="截止日期"
+                                  DateFormat="Y/m/d"
+                                  AdornmentIcon="@Icons.Material.Filled.CalendarToday" />
                     </MudItem>
 
                     <!-- 優先順序 -->
@@ -98,7 +116,9 @@
                                       @bind-Value="editModel.Priority" 
                                       Label="優先順序" 
                                       Variant="Variant.Outlined"
-                                      Required="true">
+                                      Margin="Margin.Dense"
+                                      Required="true"
+                                      AdornmentIcon="@Icons.Material.Filled.Flag">
                                 <MudSelectItem T="string" Value="@("Low")">低</MudSelectItem>
                                 <MudSelectItem T="string" Value="@("Medium")">中</MudSelectItem>
                                 <MudSelectItem T="string" Value="@("High")">高</MudSelectItem>
@@ -110,7 +130,9 @@
                                       @bind-Value="model.Priority" 
                                       Label="優先順序" 
                                       Variant="Variant.Outlined"
-                                      Required="true">
+                                      Margin="Margin.Dense"
+                                      Required="true"
+                                      AdornmentIcon="@Icons.Material.Filled.Flag">
                                 <MudSelectItem T="string" Value="@("Low")">低</MudSelectItem>
                                 <MudSelectItem T="string" Value="@("Medium")">中</MudSelectItem>
                                 <MudSelectItem T="string" Value="@("High")">高</MudSelectItem>
@@ -126,7 +148,9 @@
                                       @bind-Value="editModel.Status" 
                                       Label="狀態" 
                                       Variant="Variant.Outlined"
-                                      Required="true">
+                                      Margin="Margin.Dense"
+                                      Required="true"
+                                      AdornmentIcon="@Icons.Material.Filled.CheckCircle">
                                 <MudSelectItem T="string" Value="@("Pending")">待處理</MudSelectItem>
                                 <MudSelectItem T="string" Value="@("InProgress")">進行中</MudSelectItem>
                                 <MudSelectItem T="string" Value="@("Completed")">已完成</MudSelectItem>
@@ -142,7 +166,9 @@
                                       @bind-Value="editModel.CategoryId" 
                                       Label="分類" 
                                       Variant="Variant.Outlined"
-                                      Clearable="true">
+                                      Margin="Margin.Dense"
+                                      Clearable="true"
+                                      AdornmentIcon="@Icons.Material.Filled.Category">
                                 @foreach (var category in categories)
                                 {
                                     <MudSelectItem T="int?" Value="@((int?)category.Id)">@category.Name</MudSelectItem>
@@ -155,7 +181,9 @@
                                       @bind-Value="model.CategoryId" 
                                       Label="分類" 
                                       Variant="Variant.Outlined"
-                                      Clearable="true">
+                                      Margin="Margin.Dense"
+                                      Clearable="true"
+                                      AdornmentIcon="@Icons.Material.Filled.Category">
                                 @foreach (var category in categories)
                                 {
                                     <MudSelectItem T="int?" Value="@((int?)category.Id)">@category.Name</MudSelectItem>
@@ -168,19 +196,27 @@
                     @if (!IsEditMode)
                     {
                         <MudItem xs="12">
-                            <MudText Typo="Typo.subtitle1" Class="mb-2">子任務</MudText>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Checklist" Size="Size.Small" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Style="font-weight: 600;">子任務</MudText>
+                            </MudStack>
+                            <MudDivider Class="mb-3" />
                             @foreach (var (subTask, index) in model.SubTasks.Select((st, i) => (st, i)))
                             {
-                                <div class="d-flex gap-2 mb-2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-2">
                                     <MudTextField @bind-Value="subTask.Title" 
                                                  Variant="Variant.Outlined" 
                                                  Margin="Margin.Dense"
                                                  Placeholder="子任務標題" 
-                                                 Class="flex-grow-1" />
+                                                 Class="flex-grow-1"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentIcon="@Icons.Material.Filled.SubdirectoryArrowRight" />
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" 
                                                   Color="Color.Error" 
+                                                  Size="Size.Small"
+                                                  Variant="Variant.Outlined"
                                                   OnClick="@(() => RemoveSubTask(index))" />
-                                </div>
+                                </MudStack>
                             }
                             <MudButton Variant="Variant.Text" 
                                       Color="Color.Primary" 
@@ -198,9 +234,10 @@
                 }
 
                 <!-- 按鈕 -->
-                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-6">
                     <MudButton Variant="Variant.Outlined" 
-                              OnClick="@(() => Cancel())">
+                              OnClick="@(() => Cancel())"
+                              StartIcon="@Icons.Material.Filled.Close">
                         取消
                     </MudButton>
                     <MudButton Variant="Variant.Filled" 
@@ -217,31 +254,45 @@
         <!-- 編輯模式下的子任務管理 -->
         @if (IsEditMode && existingTodo != null)
         {
-            <MudPaper Elevation="2" Class="pa-4 mt-4">
-                <MudText Typo="Typo.h6" Class="mb-4">子任務管理</MudText>
+            <MudPaper Elevation="2" Class="pa-6 mt-4 rounded-lg">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Checklist" Size="Size.Small" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6" Color="Color.Primary" Style="font-weight: 600;">子任務管理</MudText>
+                    <MudSpacer />
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">
+                        @existingTodo.SubTasks.Count(st => st.IsCompleted) / @existingTodo.SubTasks.Count
+                    </MudChip>
+                </MudStack>
                 
-                @foreach (var subTask in existingTodo.SubTasks.OrderBy(st => st.SortOrder))
-                {
-                    <div class="d-flex align-center gap-2 mb-2 pa-2" style="border: 1px solid #e0e0e0; border-radius: 4px;">
-                        <MudCheckBox T="bool" 
-                                    Value="@subTask.IsCompleted" 
-                                    ValueChanged="@(async (bool val) => await ToggleSubTask(subTask.Id, val))"
-                                    Color="Color.Primary" />
-                        <MudText Typo="Typo.body1" Class="flex-grow-1" Style="@(subTask.IsCompleted ? "text-decoration: line-through; color: #9e9e9e;" : "")">
-                            @subTask.Title
-                        </MudText>
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                      Color="Color.Error" 
-                                      Size="Size.Small"
-                                      OnClick="@(async () => await DeleteSubTask(subTask.Id))" />
-                    </div>
-                }
+                <MudStack Spacing="2">
+                    @foreach (var subTask in existingTodo.SubTasks.OrderBy(st => st.SortOrder))
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 rounded-lg">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudCheckBox T="bool" 
+                                            Value="@subTask.IsCompleted" 
+                                            ValueChanged="@(async (bool val) => await ToggleSubTask(subTask.Id, val))"
+                                            Color="Color.Primary" />
+                                <MudText Typo="Typo.body1" Class="flex-grow-1" 
+                                        Style="@(subTask.IsCompleted ? "text-decoration: line-through; opacity: 0.5;" : "")">
+                                    @subTask.Title
+                                </MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                              Color="Color.Error" 
+                                              Size="Size.Small"
+                                              OnClick="@(async () => await DeleteSubTask(subTask.Id))" />
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
 
-                <MudStack Row="true" Class="mt-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-4">
                     <MudTextField @bind-Value="newSubTaskTitle" 
                                  Variant="Variant.Outlined" 
                                  Placeholder="新子任務標題"
-                                 Class="flex-grow-1" />
+                                 Class="flex-grow-1"
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.Add" />
                     <MudButton Variant="Variant.Filled" 
                               Color="Color.Primary" 
                               OnClick="@(async () => await AddSubTaskToExisting())"
@@ -253,26 +304,6 @@
         }
     }
 </MudContainer>
-
-<style>
-    /* 確保原生日期選擇器不被遮擋 */
-    input[type="date"]::-webkit-calendar-picker-indicator {
-        z-index: 2000;
-        cursor: pointer;
-    }
-    
-    input[type="date"] {
-        position: relative;
-        z-index: 100;
-    }
-    
-    /* 確保容器不會裁切日期選擇器 */
-    .mud-grid-item,
-    .mud-paper,
-    .mud-container {
-        overflow: visible !important;
-    }
-</style>
 
 @code {
     [Parameter] public int? Id { get; set; }
@@ -286,7 +317,7 @@
     private bool submitting = false;
     private string? errorMessage;
     private string? newSubTaskTitle;
-    private string? dueDateString;
+    private DateTime? dueDate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -321,7 +352,7 @@
             editModel.Status = existingTodo.Status;
             editModel.CategoryId = existingTodo.Category?.Id;
             
-            dueDateString = existingTodo.DueDate?.ToString("yyyy-MM-dd");
+            dueDate = existingTodo.DueDate;
         }
     }
 
@@ -332,20 +363,13 @@
 
         try
         {
-            // 同步日期
-            DateTime? parsedDate = null;
-            if (!string.IsNullOrWhiteSpace(dueDateString) && DateTime.TryParse(dueDateString, out var tempDate))
-            {
-                parsedDate = tempDate;
-            }
-            
             if (IsEditMode)
             {
-                editModel.DueDate = parsedDate;
+                editModel.DueDate = dueDate;
             }
             else
             {
-                model.DueDate = parsedDate;
+                model.DueDate = dueDate;
             }
 
             if (IsEditMode && Id.HasValue)

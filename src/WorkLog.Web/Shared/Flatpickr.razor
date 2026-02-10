@@ -1,0 +1,104 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<div class="mud-input-control mud-input-input-control">
+    <div class="mud-input-control-input-container">
+        <div class="mud-input mud-input-outlined mud-shrink" style="margin: 0;">
+            @if (!string.IsNullOrEmpty(Label))
+            {
+                <label class="mud-input-label mud-input-label-animated mud-input-label-outlined mud-input-label-inputcontrol" 
+                       style="transform: translate(14px, -9px) scale(0.75); position: absolute; z-index: 1; background: white; padding: 0 5px; pointer-events: none;">@Label</label>
+            }
+            <div class="mud-input-slot mud-input-root mud-input-root-outlined" style="display:flex;align-items:center;padding:0;box-sizing:border-box;">
+                @if (!string.IsNullOrEmpty(AdornmentIcon))
+                {
+                    <div class="mud-input-adornment mud-input-adornment-start" style="margin-left: 14px; margin-right: 0;">
+                        <MudIcon Icon="@AdornmentIcon" Size="Size.Medium" Color="Color.Default" />
+                    </div>
+                }
+                <input type="text" 
+                       id="@ElementId" 
+                       class="mud-input-slot mud-input-root mud-input-root-outlined flatpickr-input-custom"
+                       readonly="readonly"
+                       style="flex: 1; border: none; outline: none; background: transparent; cursor: pointer; box-sizing: border-box; padding: 16.5px 14px; font-size: 1rem; font-family: inherit;" />
+            </div>
+            <fieldset class="mud-input-outlined-border" style="border-color: rgba(0, 0, 0, 0.23); pointer-events: none;">
+                <legend style="@(string.IsNullOrEmpty(Label) ? "width: 0.01px;" : $"width: {(Label.Length * 8 + 5)}px;")">
+                    @if (!string.IsNullOrEmpty(Label))
+                    {
+                        <span class="notranslate">&#8203;</span>
+                    }
+                </legend>
+            </fieldset>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string ElementId = $"flatpickr-{Guid.NewGuid():N}";
+    private DotNetObjectReference<Flatpickr>? dotNetHelper;
+
+    [Parameter]
+    public DateTime? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<DateTime?> ValueChanged { get; set; }
+
+    [Parameter]
+    public string DateFormat { get; set; } = "Y/m/d";
+
+    [Parameter]
+    public string Label { get; set; } = "";
+
+    [Parameter]
+    public string AdornmentIcon { get; set; } = "";
+
+    [Parameter]
+    public string Locale { get; set; } = "zh_tw";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetHelper = DotNetObjectReference.Create(this);
+
+            var options = new
+            {
+                dateFormat = DateFormat,
+                locale = Locale,
+                defaultDate = Value?.ToString("yyyy-MM-dd")
+            };
+
+            await JSRuntime.InvokeVoidAsync("flatpickrInterop.init", ElementId, dotNetHelper, options);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnDateChanged(string dateString)
+    {
+        if (string.IsNullOrWhiteSpace(dateString))
+        {
+            Value = null;
+        }
+        else if (DateTime.TryParse(dateString, out var parsedDate))
+        {
+            Value = parsedDate;
+        }
+
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!string.IsNullOrEmpty(ElementId))
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("flatpickrInterop.destroy", ElementId);
+            }
+            catch { }
+        }
+
+        dotNetHelper?.Dispose();
+    }
+}

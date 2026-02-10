@@ -2,6 +2,12 @@
 @inject ISnackbar Snackbar
 
 <MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Style="font-weight: 600;">快速新增工作紀錄</MudText>
+        </MudStack>
+    </TitleContent>
     <DialogContent>
         @if (!string.IsNullOrEmpty(errorMessage))
         {
@@ -12,34 +18,25 @@
             <DataAnnotationsValidator />
             <ValidationSummary Class="mb-4" />
 
-            <MudGrid>
+            <MudGrid Spacing="4">
                 @* 標題 *@
                 <MudItem xs="12">
                     <MudTextField @bind-Value="formModel.Title" 
                                  Label="標題" 
                                  Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
                                  Required="true"
-                                 For="@(() => formModel.Title)" />
+                                 For="@(() => formModel.Title)"
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.Title" />
                 </MudItem>
 
                 @* 紀錄日期 *@
                 <MudItem xs="12" sm="6">
-                    <div class="mud-input-control mud-input-input-control">
-                        <div class="mud-input-control-input-container">
-                            <div class="mud-input mud-input-outlined mud-shrink">
-                                <input type="date" 
-                                       value="@recordDateString"
-                                       @onchange="@((ChangeEventArgs e) => recordDateString = e.Value?.ToString() ?? string.Empty)"
-                                       required
-                                       class="mud-input-slot mud-input-root mud-input-root-outlined"
-                                       style="box-sizing: border-box; padding: 16.5px 14px;" />
-                                <label class="mud-input-label mud-input-label-outlined" style="transform: translate(14px, -9px) scale(0.75); z-index: 1; background: white; padding: 0 5px;">紀錄日期 *</label>
-                                <fieldset class="mud-input-outlined-border">
-                                    <legend style="width: 0.01px;"><span>&#8203;</span></legend>
-                                </fieldset>
-                            </div>
-                        </div>
-                    </div>
+                    <Flatpickr @bind-Value="recordDate"
+                              Label="紀錄日期"
+                              DateFormat="Y/m/d"
+                              AdornmentIcon="@Icons.Material.Filled.CalendarToday" />
                 </MudItem>
 
                 @* 專案名稱 *@
@@ -47,8 +44,10 @@
                     <MudSelect @bind-Value="formModel.ProjectId" 
                               Label="專案名稱" 
                               Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
                               Required="true"
-                              T="int">
+                              T="int"
+                              AdornmentIcon="@Icons.Material.Filled.Folder">
                         <MudSelectItem Value="0" Disabled="true">-- 請選擇 --</MudSelectItem>
                         @foreach (var p in projects)
                         {
@@ -62,10 +61,13 @@
                     <MudNumericField @bind-Value="formModel.WorkHours" 
                                     Label="工時（小時）" 
                                     Variant="Variant.Outlined"
+                                    Margin="Margin.Dense"
                                     Step="0.5M"
                                     Min="0M"
                                     Required="true"
-                                    T="decimal" />
+                                    T="decimal"
+                                    Adornment="Adornment.Start"
+                                    AdornmentIcon="@Icons.Material.Filled.AccessTime" />
                 </MudItem>
 
                 @* 處理狀態 *@
@@ -73,8 +75,10 @@
                     <MudSelect @bind-Value="formModel.ProcessStatusId" 
                               Label="處理狀態" 
                               Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
                               Required="true"
-                              T="int">
+                              T="int"
+                              AdornmentIcon="@Icons.Material.Filled.CheckCircle">
                         <MudSelectItem Value="0" Disabled="true">-- 請選擇 --</MudSelectItem>
                         @foreach (var s in processStatuses)
                         {
@@ -85,24 +89,32 @@
 
                 @* 業管單位（複選） *@
                 <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">
-                        業管單位 
-                        <span style="color: var(--mud-palette-error);">*</span>
-                        （可複選，請至少選擇一個）
-                    </MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Style="font-weight: 600;">
+                            業管單位
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-1">
+                            <span style="color: var(--mud-palette-error);">*</span> 可複選
+                        </MudText>
+                    </MudStack>
+                    <MudDivider Class="mb-2" />
                     @if (departments.Count > 0)
                     {
-                        <MudGrid>
-                            @foreach (var dept in departments)
-                            {
-                                <MudItem xs="6" sm="4">
-                                    <MudCheckBox Value="@CheckedDepartments[dept.Id]"
-                                                ValueChanged="@((bool val) => OnDepartmentChanged(dept.Id, val))"
-                                                Label="@dept.Name"
-                                                Color="Color.Primary" />
-                                </MudItem>
-                            }
-                        </MudGrid>
+                        <MudPaper Outlined="true" Class="pa-2 rounded-lg">
+                            <MudGrid>
+                                @foreach (var dept in departments)
+                                {
+                                    <MudItem xs="6" sm="4">
+                                        <MudCheckBox Value="@CheckedDepartments[dept.Id]"
+                                                    ValueChanged="@((bool val) => OnDepartmentChanged(dept.Id, val))"
+                                                    Label="@dept.Name"
+                                                    Color="Color.Primary"
+                                                    Dense="true" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudPaper>
                     }
                     else
                     {
@@ -114,24 +126,32 @@
 
                 @* 工作類型（複選） *@
                 <MudItem xs="12">
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">
-                        工作類型 
-                        <span style="color: var(--mud-palette-error);">*</span>
-                        （可複選，請至少選擇一個）
-                    </MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Style="font-weight: 600;">
+                            工作類型
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-1">
+                            <span style="color: var(--mud-palette-error);">*</span> 可複選
+                        </MudText>
+                    </MudStack>
+                    <MudDivider Class="mb-2" />
                     @if (workTypes.Count > 0)
                     {
-                        <MudGrid>
-                            @foreach (var wt in workTypes)
-                            {
-                                <MudItem xs="6" sm="4">
-                                    <MudCheckBox Value="@CheckedWorkTypes[wt.Id]"
-                                                ValueChanged="@((bool val) => OnWorkTypeChanged(wt.Id, val))"
-                                                Label="@wt.Name"
-                                                Color="Color.Primary" />
-                                </MudItem>
-                            }
-                        </MudGrid>
+                        <MudPaper Outlined="true" Class="pa-2 rounded-lg">
+                            <MudGrid>
+                                @foreach (var wt in workTypes)
+                                {
+                                    <MudItem xs="6" sm="4">
+                                        <MudCheckBox Value="@CheckedWorkTypes[wt.Id]"
+                                                    ValueChanged="@((bool val) => OnWorkTypeChanged(wt.Id, val))"
+                                                    Label="@wt.Name"
+                                                    Color="Color.Primary"
+                                                    Dense="true" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudPaper>
                     }
                     else
                     {
@@ -146,6 +166,7 @@
                     <MudTextField @bind-Value="formModel.Content" 
                                  Label="內文" 
                                  Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
                                  Lines="5"
                                  Required="true"
                                  For="@(() => formModel.Content)" />
@@ -157,7 +178,8 @@
     <DialogActions>
         <MudButton OnClick="Cancel" 
                   Variant="Variant.Outlined" 
-                  Color="Color.Default">
+                  Color="Color.Default"
+                  StartIcon="@Icons.Material.Filled.Close">
             取消
         </MudButton>
         <MudButton OnClick="Submit" 
@@ -170,26 +192,6 @@
     </DialogActions>
 </MudDialog>
 
-<style>
-    /* 確保原生日期選擇器不被遮擋 */
-    input[type="date"]::-webkit-calendar-picker-indicator {
-        z-index: 2000;
-        cursor: pointer;
-    }
-    
-    input[type="date"] {
-        position: relative;
-        z-index: 100;
-    }
-    
-    /* 確保对话框容器不會裁切日期選擇器 */
-    .mud-dialog,
-    .mud-dialog-content,
-    .mud-grid-item {
-        overflow: visible !important;
-    }
-</style>
-
 @code {
     [CascadingParameter] 
     private MudDialogInstance MudDialog { get; set; } = null!;
@@ -198,7 +200,7 @@
     public DateOnly SelectedDate { get; set; }
 
     private WorkLogRequest formModel = new();
-    private string recordDateString = string.Empty;
+    private DateTime? recordDate;
     private List<LookupItemDto> projects = new();
     private List<LookupItemDto> departments = new();
     private List<LookupItemDto> workTypes = new();
@@ -212,7 +214,7 @@
     {
         // 設定預設日期
         formModel.RecordDate = SelectedDate;
-        recordDateString = SelectedDate.ToString("yyyy-MM-dd");
+        recordDate = SelectedDate.ToDateTime(TimeOnly.MinValue);
 
         await LoadLookups();
 
@@ -253,9 +255,9 @@
         errorMessage = null;
 
         // 轉換日期
-        if (!string.IsNullOrWhiteSpace(recordDateString) && DateTime.TryParse(recordDateString, out var parsedDate))
+        if (recordDate.HasValue)
         {
-            formModel.RecordDate = DateOnly.FromDateTime(parsedDate);
+            formModel.RecordDate = DateOnly.FromDateTime(recordDate.Value);
         }
 
         // 驗證必填欄位
